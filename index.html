@@ -74,7 +74,7 @@ h1{font-size:clamp(30px,7vw,52px)}h2{font-size:clamp(20px,4.5vw,28px)}h3{font-si
 .btn svg{width:18px;height:18px}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;background:var(--surface2);border:1px solid var(--line);font-size:12.5px;font-weight:700;white-space:nowrap}
 .chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
-.chips .chip{cursor:pointer}.chips .chip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.chips .chip{cursor:pointer}.chip.pick{position:relative;cursor:pointer;padding:8px 13px;font-size:13px}.chip.pick input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}.chip.pick:has(input:checked){background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}.chip.pick:has(input:checked)::before{content:'✓'}.chip.pick:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}.field.err .chips{outline:1px solid var(--red);border-radius:12px;padding:6px}.chips .chip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:800;letter-spacing:.02em;white-space:nowrap}
 .b-Vacant,.b-Cleared,.b-paid,.b-Paid,.b-Active,.b-Held,.b-Refunded{background:color-mix(in srgb,var(--green) 22%,transparent);color:var(--green)}
 .b-Booked,.b-Deposited,.b-Trial,.b-Partial,.b-Renewed{background:color-mix(in srgb,var(--blue) 22%,transparent);color:var(--blue)}
@@ -300,7 +300,7 @@ const SYNC_FIELDS = {
   leases: ['unit_type', 'unit_id', 'property_id', 'tenant_id', 'start_date', 'end_date', 'annual_rent_fils', 'admin_fee_fils', 'extra_charges', 'deposit_fils', 'deposit_status', 'deposit_refunded_fils', 'schedule_type', 'payment_method', 'status', 'renewed_from'],
   payment_schedules: ['lease_id', 'property_id', 'seq', 'kind', 'label', 'due_date', 'amount_fils', 'method', 'status', 'paid_on', 'pdc_id', 'transaction_id'],
   pdcs: ['direction', 'cheque_no', 'bank', 'amount_fils', 'due_date', 'status', 'party', 'lease_id', 'schedule_id', 'property_id', 'replaced_by'],
-  transactions: ['type', 'category', 'amount_fils', 'date', 'property_id', 'lease_id', 'tenant_id', 'method', 'reference'],
+  transactions: ['type', 'category', 'categories', 'amount_fils', 'date', 'property_id', 'lease_id', 'tenant_id', 'method', 'reference'],
   expenses: ['date', 'amount_fils', 'merchant', 'category', 'property_id', 'source'],
   bills: ['name', 'provider', 'account_no', 'amount_fils', 'due_date', 'status', 'paid_on', 'property_id'],
   health_logs: ['kind', 'date', 'weight_kg', 'systolic', 'diastolic', 'pulse', 'sugar', 'sugar_unit', 'sugar_type', 'cycle_start', 'cycle_end'],
@@ -503,6 +503,12 @@ function fieldHTML(f, rec) {
     case 'email': return wrap(`<input ${common} type="email" autocomplete="email" value="${esc(v ?? '')}">`);
     case 'time': return wrap(`<input ${common} type="time" value="${esc(v ?? f.def ?? '')}">`);
     case 'times': return wrap(`<input ${common} value="${esc((v || []).join(', '))}" placeholder="08:00, 20:00">`);
+    case 'multi': {
+      const sel = Array.isArray(v) ? v : (f.from ? f.from(rec || {}) : (f.def || []));
+      return `<div class="field ${f.full ? 'full' : ''}" data-field="${f.k}"><span class="lbl" id="${id}_l" style="font-size:12.5px;font-weight:700">${esc(f.label)}${req}</span>
+        <div class="chips" style="flex-wrap:wrap;margin-top:6px" role="group" aria-labelledby="${id}_l">${(f.opts || []).map(([ov, ol]) => `<label class="chip pick"><input type="checkbox" name="${f.k}" value="${esc(ov)}" ${sel.includes(ov) ? 'checked' : ''}>${esc(ol)}</label>`).join('')}</div>
+        ${f.help ? `<span class="tiny muted">${esc(f.help)}</span>` : ''}<span class="msg"></span></div>`;
+    }
     case 'checkbox': return `<label class="check ${f.full ? 'full' : ''}" data-field="${f.k}"><input type="checkbox" name="${f.k}" id="${id}" ${v ?? f.def ? 'checked' : ''}> ${esc(f.label)}</label>`;
     default: return wrap(`<input ${common} type="text" value="${esc(v ?? f.def ?? '')}" ${f.max ? `maxlength="${f.max}"` : ''}>`);
   }
@@ -524,6 +530,7 @@ function readForm(root, fields) {
       case 'tel': v = raw ? normMobile(raw) : ''; if (v && !isE164(v)) err = t('err_mobile'); break;
       case 'email': v = raw; if (v && !isEmail(v)) err = t('err_email'); break;
       case 'checkbox': v = raw; break;
+      case 'multi': v = [...root.querySelectorAll(`[name="${f.k}"]:checked`)].map((e) => e.value); break;
       default: v = raw;
     }
     if (!err && f.req && (v === null || v === '' || (Array.isArray(v) && !v.length))) err = t('err_required');
@@ -1731,14 +1738,16 @@ Object.assign(ACTIONS, {
 /* ---------------- Transactions ---------------- */
 const TX_CATS = ['rent', 'fees', 'deposit_in', 'deposit_refund', 'commission_in', 'landlord_rent', 'other'];
 const txSelected = () => (S.params.cats || '').split(',').filter(Boolean);
-function txFilterRows(all, cats, type) { return all.filter((x) => (!cats.length || cats.includes(x.category)) && (!type || x.type === type)); }
+const txCatsOf = (x) => (Array.isArray(x.categories) && x.categories.length ? x.categories : [x.category]).filter(Boolean);
+const txCatLabel = (x) => txCatsOf(x).map((c) => t('cat_' + c)).join(' + ');
+function txFilterRows(all, cats, type) { return all.filter((x) => (!cats.length || txCatsOf(x).some((c) => cats.includes(c))) && (!type || x.type === type)); }
 async function viewTransactions() {
   const all = (await list('transactions')).sort(by('date', -1)); const props = await list('properties');
   const cats = txSelected(); const type = S.params.type || '';
-  const known = [...new Set([...TX_CATS, ...all.map((x) => x.category).filter(Boolean)])];
+  const known = [...new Set([...TX_CATS, ...all.flatMap(txCatsOf)])];
   const rows = txFilterRows(all, cats, type);
   const inc = sum(rows.filter((x) => x.type === 'income'), (x) => x.amount_fils); const exp = sum(rows.filter((x) => x.type === 'expense'), (x) => x.amount_fils);
-  const count = (c) => all.filter((x) => x.category === c && (!type || x.type === type)).length;
+  const count = (c) => all.filter((x) => txCatsOf(x).includes(c) && (!type || x.type === type)).length;
   const filters = `<div class="card" style="margin-bottom:12px"><div class="row between" style="margin-bottom:8px"><b class="small">${esc(t('filter_categories'))}</b>
       <span class="small muted">${cats.length ? esc(t('n_selected', { n: cats.length })) : esc(t('all_categories'))}${cats.length ? ` · <a href="#" data-act="tx-cats-clear">${esc(t('clear'))}</a>` : ''}</span></div>
     <div class="chips" style="flex-wrap:wrap" role="group" aria-label="${esc(t('filter_categories'))}">${known.map((c) => `<button type="button" class="chip ${cats.includes(c) ? 'on' : ''}" aria-pressed="${cats.includes(c)}" data-act="tx-cat" data-c="${esc(c)}">${cats.includes(c) ? '✓ ' : ''}${esc(t('cat_' + c))} · ${count(c)}</button>`).join('')}</div>
@@ -1747,16 +1756,18 @@ async function viewTransactions() {
       <div class="stat"><div class="l">${esc(t('expense'))}</div><div class="v" style="font-size:22px;color:var(--red)">${fmtAED(exp)}</div></div>
       <div class="stat accent"><div class="l">${esc(t('net'))} · ${esc(t('n_transactions', { n: rows.length }))}</div><div class="v" style="font-size:22px">${fmtAED(inc - exp)}</div></div></div>`;
   return pageHead(esc(t('r_transactions')), `<button class="btn primary" data-act="new-tx">${icon('plus')} ${esc(t('add'))}</button><button class="btn" data-act="tx-csv">${icon('download')} CSV</button>`) + filters +
-    (rows.length ? `<div class="list">${rows.slice(0, 400).map((x) => `<button class="item" data-act="edit-tx" data-id="${x.id}"><div class="grow"><div class="t">${esc(t('cat_' + x.category))}</div><div class="s">${fmtDate(x.date)} · ${esc(props.find((p) => p.id === x.property_id)?.name || '')} · ${esc(t('pm_' + (x.method || 'Cash')))} ${esc(x.reference || '')}</div></div>
+    (rows.length ? `<div class="list">${rows.slice(0, 400).map((x) => `<button class="item" data-act="edit-tx" data-id="${x.id}"><div class="grow"><div class="t">${esc(txCatLabel(x))}</div><div class="s">${fmtDate(x.date)} · ${esc(props.find((p) => p.id === x.property_id)?.name || '')} · ${esc(t('pm_' + (x.method || 'Cash')))} ${esc(x.reference || '')}</div></div>
       <span class="amt" style="color:${x.type === 'income' ? 'var(--green)' : 'var(--red)'}">${x.type === 'income' ? '+' : '−'}${fmtAED(x.amount_fils)}</span></button>`).join('')}</div>` : `<div class="empty">${esc(t('nothing_here'))}</div>`);
 }
 async function txFields() {
   return [{ k: 'type', type: 'select', label: t('f_type'), req: true, opts: [['income', t('income')], ['expense', t('expense')]] },
-    { k: 'category', type: 'select', label: t('f_category'), req: true, opts: ['rent', 'fees', 'deposit_in', 'deposit_refund', 'commission_in', 'landlord_rent', 'other'].map((c) => [c, t('cat_' + c)]) },
+    { k: 'categories', type: 'multi', label: t('f_categories'), req: true, full: true, help: t('cat_multi_help'), opts: TX_CATS.map((c) => [c, t('cat_' + c)]), from: (r) => txCatsOf(r) },
     { k: 'amount_fils', type: 'money', label: t('f_amount'), req: true, min: 1 }, { k: 'date', type: 'date', label: t('f_date'), req: true },
     { k: 'property_id', type: 'select', label: t('f_property'), opts: await propertyOpts() }, { k: 'method', type: 'select', label: t('f_method'), opts: [['Cash', t('pm_Cash')], ['Cheque', t('pm_Cheque')], ['Transfer', t('pm_Transfer')]], def: 'Cash' },
     { k: 'reference', label: t('f_reference') }, ...(await memberField()), { k: 'notes', type: 'textarea', label: t('f_notes'), full: true }];
 }
+/** First ticked category stays in `category` so accounting, reports and older app versions keep working. */
+const txNorm = (x) => ({ ...x, categories: [...new Set(x.categories || [])], category: (x.categories || [])[0] || x.category || 'other' });
 function setTxCats(cats) { const p = new URLSearchParams(location.hash.split('?')[1] || ''); if (cats.length) p.set('cats', cats.join(',')); else p.delete('cats'); go('#/transactions' + (p.toString() ? '?' + p : '')); }
 Object.assign(ACTIONS, {
   'tx-cat': (d) => { const cur = txSelected(); setTxCats(cur.includes(d.c) ? cur.filter((c) => c !== d.c) : [...cur, d.c]); },
@@ -1764,12 +1775,12 @@ Object.assign(ACTIONS, {
   'tx-csv': async () => {
     const props = await list('properties'); const rows = txFilterRows((await list('transactions')).sort(by('date', -1)), txSelected(), S.params.type || '');
     const out = [['Date', 'Type', 'Category', 'Amount (AED)', 'Property', 'Method', 'Reference', 'Notes']];
-    for (const x of rows) out.push([fmtDate(x.date), x.type, t('cat_' + x.category), (x.type === 'expense' ? '-' : '') + filsToInput(x.amount_fils), props.find((p) => p.id === x.property_id)?.name || '', x.method || '', x.reference || '', x.notes || '']);
+    for (const x of rows) out.push([fmtDate(x.date), x.type, txCatLabel(x), (x.type === 'expense' ? '-' : '') + filsToInput(x.amount_fils), props.find((p) => p.id === x.property_id)?.name || '', x.method || '', x.reference || '', x.notes || '']);
     download(`transactions-${todayYMD()}.csv`, toCSV(out), 'text/csv');
   },
-  'new-tx': async () => formSheet({ title: t('add_transaction'), fields: await txFields(), rec: { type: 'income', date: ymdToISO(todayYMD()) }, onSave: async (x) => { await save('transactions', x); refresh(); } }),
+  'new-tx': async () => formSheet({ title: t('add_transaction'), fields: await txFields(), rec: { type: 'income', date: ymdToISO(todayYMD()) }, onSave: async (x) => { await save('transactions', txNorm(x)); refresh(); } }),
   'edit-tx': async (d) => { const rec = await getRec('transactions', d.id);
-    await formSheet({ title: t('edit'), fields: await txFields(), rec, extraHTML: `<button type="button" class="btn danger sm" data-act="del" data-store="transactions" data-id="${rec.id}" data-label="${esc(fmtAED(rec.amount_fils))}" data-close>${icon('trash')} ${esc(t('delete'))}</button>`, onSave: async (x) => { await save('transactions', { ...rec, ...x }); refresh(); } }); },
+    await formSheet({ title: t('edit'), fields: await txFields(), rec, extraHTML: `<button type="button" class="btn danger sm" data-act="del" data-store="transactions" data-id="${rec.id}" data-label="${esc(fmtAED(rec.amount_fils))}" data-close>${icon('trash')} ${esc(t('delete'))}</button>`, onSave: async (x) => { await save('transactions', txNorm({ ...rec, ...x })); refresh(); } }); },
 });
 
 /* ---------------- Expenses + OCR receipt scanner ---------------- */
@@ -2493,6 +2504,7 @@ Object.assign(ACTIONS, {
    Format: [key, English, Malayalam]
    ===================================================================== */
 const I18N_ROWS = [
+['f_categories', 'Categories', 'വിഭാഗങ്ങൾ'], ['cat_multi_help', 'Tick one or more. The first one ticked is used in accounting reports.', 'ഒന്നോ അതിലധികമോ തിരഞ്ഞെടുക്കുക. ആദ്യം തിരഞ്ഞെടുത്തത് അക്കൗണ്ടിംഗ് റിപ്പോർട്ടുകളിൽ ഉപയോഗിക്കും.'],
 ['filter_categories', 'Categories', 'വിഭാഗങ്ങൾ'], ['all_categories', 'All categories', 'എല്ലാ വിഭാഗങ്ങളും'], ['n_selected', '{n} selected', '{n} തിരഞ്ഞെടുത്തു'],
 ['clear', 'Clear', 'മായ്ക്കുക'], ['net', 'Net', 'അറ്റം'], ['n_transactions', '{n} transactions', '{n} ഇടപാടുകൾ'],
 ['choose', 'Choose…', 'തിരഞ്ഞെടുക്കുക…'], ['banks_national', 'UAE national banks', 'യുഎഇ ദേശീയ ബാങ്കുകൾ'], ['banks_foreign', 'Foreign banks in the UAE', 'യുഎഇയിലെ വിദേശ ബാങ്കുകൾ'],
