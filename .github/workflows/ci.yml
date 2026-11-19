@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, curl, mbstring, openssl
+
+      - name: PHP syntax check
+        run: |
+          find . -name '*.php' -not -path './.git/*' -print0 | xargs -0 -n1 php -l
+
+      - name: JavaScript syntax check (index.html module + service worker)
+        run: |
+          python3 - <<'PY'
+          h = open('index.html', encoding='utf-8').read()
+          start = h.index('<script type="module">') + len('<script type="module">')
+          open('/tmp/app.mjs', 'w', encoding='utf-8').write(h[start:h.rindex('</script>')])
+          PY
+          node --check /tmp/app.mjs
+          node --check sw.js
+
+      - name: Translation coverage (every t('key') exists in EN + ML)
+        run: |
+          python3 - <<'PY'
+          import re, sys
+          h = open('index.html', encoding='utf-8').read()
+          rows = re.findall(r"\['([^']+)', '(?:[^'\\]|\\.)*', '(?:[^'\\]|\\.)*'\]", h)
+          keys = set(rows)
+          used = set(re.findall(r"\bt\('([A-Za-z0-9_ ]+)'", h))
+          missing = sorted(k for k in used if k not in keys and not k.endswith('_'))
+          if missing:
+              print('Missing translations:', missing); sys.exit(1)
+          print(f'{len(used)} keys used, all translated')
+          PY
+
+      - name: No secrets committed
+        run: |
+          test ! -f config.php || (echo "config.php must not be committed" && exit 1)

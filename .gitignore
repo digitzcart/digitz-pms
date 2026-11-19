@@ -1,0 +1,10 @@
+# Secrets and machine-specific state — never commit
+config.php
+install.lock
+*.env
+.env*
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

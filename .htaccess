@@ -1,0 +1,41 @@
+# Digitz PMS — Apache config
+Options -Indexes
+RewriteEngine On
+
+# Force HTTPS
+RewriteCond %{HTTPS} off
+RewriteCond %{HTTP:X-Forwarded-Proto} !https
+RewriteCond %{REMOTE_ADDR} !^127\.0\.0\.1$
+RewriteCond %{REMOTE_ADDR} !^::1$
+RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1)(:\d+)?$
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Pass the Authorization header to PHP (needed on some CGI/FPM setups)
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+# Never serve secrets, schema, lock files or internal folders
+RewriteRule ^(config\.php|config\.sample\.php|schema\.sql|install\.lock|README\.md)$ - [F,L]
+RewriteRule ^(api/lib|cron)(/|$) - [F,L]
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "no-referrer"
+  Header always set Permissions-Policy "camera=(self), geolocation=(), microphone=()"
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+  <FilesMatch "^(index\.html|sw\.js|manifest\.json)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+  <FilesMatch "^sw\.js$">
+    Header set Service-Worker-Allowed "/"
+  </FilesMatch>
+</IfModule>
+
+AddType application/manifest+json .json
+AddType application/wasm .wasm
+AddEncoding identity .gz
+<FilesMatch "\.traineddata\.gz$">
+  ForceType application/octet-stream
+  <IfModule mod_headers.c>
+    Header unset Content-Encoding
+  </IfModule>
+</FilesMatch>

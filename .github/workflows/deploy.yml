@@ -1,0 +1,67 @@
+name: Deploy
+
+# develop  -> Test server        (automatic)
+# main     -> Production server  (needs approval in the "production" environment)
+on:
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'test' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stamp build version (forces PWA cache refresh)
+        run: |
+          SHORT=$(git rev-parse --short HEAD)
+          sed -i "s/const VERSION = 'digitz-v[^']*'/const VERSION = 'digitz-${SHORT}'/" sw.js
+          sed -i "s/version: '1.0.0'/version: '1.0.0+${SHORT}'/" index.html
+          grep -n "const VERSION" sw.js
+
+      - name: Set up SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload files (config.php and install.lock on the server are kept)
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          rsync -rlptz --delete --no-owner --no-group --chmod=D2775,F664 -e "ssh -i ~/.ssh/id_deploy" \
+            --exclude '.git/' --exclude '.github/' --exclude 'deploy/' \
+            --exclude 'config.php' --exclude 'install.lock' --exclude 'install.php' \
+            --exclude 'README.md' --exclude 'DEPLOY.md' \
+            ./ "$SSH_USER@$SSH_HOST:$DEPLOY_PATH/"
+          rsync -az -e "ssh -i ~/.ssh/id_deploy" deploy/migrate.php deploy/install-cli.php "$SSH_USER@$SSH_HOST:$DEPLOY_PATH/cron/"
+
+      - name: Apply database changes
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: ssh -i ~/.ssh/id_deploy "$SSH_USER@$SSH_HOST" "php $DEPLOY_PATH/cron/migrate.php"
+
+      - name: Smoke test
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$APP_URL/index.html")
+          echo "index.html -> $code"; test "$code" = 200
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$APP_URL/config.php")
+          echo "config.php -> $code (must be blocked)"; test "$code" = 403 -o "$code" = 404
+          curl -s "$APP_URL/api/push.php?action=public_key" | grep -q public_key
+          echo "API OK"
