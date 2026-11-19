@@ -74,7 +74,7 @@ h1{font-size:clamp(30px,7vw,52px)}h2{font-size:clamp(20px,4.5vw,28px)}h3{font-si
 .btn svg{width:18px;height:18px}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;background:var(--surface2);border:1px solid var(--line);font-size:12.5px;font-weight:700;white-space:nowrap}
 .chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
-.chips .chip{cursor:pointer}.chip.pick{position:relative;cursor:pointer;padding:8px 13px;font-size:13px}.chip.pick input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}.chip.pick:has(input:checked){background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}.chip.pick:has(input:checked)::before{content:'✓'}.chip.pick:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}.field.err .chips{outline:1px solid var(--red);border-radius:12px;padding:6px}.chips .chip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.tx-lines{display:grid;gap:10px}.tx-side{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--surface2)}.tx-side-h{display:flex;align-items:baseline;gap:8px;margin-bottom:10px;flex-wrap:wrap}.tx-side-h b{font-size:15px;text-transform:uppercase;letter-spacing:.04em}.tx-sum{margin-inline-start:auto;font-weight:800}.tx-line{display:grid;grid-template-columns:minmax(0,1fr) 170px 38px;gap:8px;margin-bottom:8px;align-items:center}.tx-line .tx-del{padding:0;height:38px;font-size:18px}.tx-swap{display:flex;justify-content:center;margin:-4px 0}.tx-bal{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:1px dashed var(--line)}.tx-lines.err .tx-bal{border-color:var(--red)}@media(max-width:560px){.tx-line{grid-template-columns:minmax(0,1fr) 120px 34px}}.chips .chip{cursor:pointer}.chip.pick{position:relative;cursor:pointer;padding:8px 13px;font-size:13px}.chip.pick input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}.chip.pick:has(input:checked){background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}.chip.pick:has(input:checked)::before{content:'✓'}.chip.pick:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}.field.err .chips{outline:1px solid var(--red);border-radius:12px;padding:6px}.chips .chip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:800;letter-spacing:.02em;white-space:nowrap}
 .b-Vacant,.b-Cleared,.b-paid,.b-Paid,.b-Active,.b-Held,.b-Refunded{background:color-mix(in srgb,var(--green) 22%,transparent);color:var(--green)}
 .b-Booked,.b-Deposited,.b-Trial,.b-Partial,.b-Renewed{background:color-mix(in srgb,var(--blue) 22%,transparent);color:var(--blue)}
@@ -300,7 +300,7 @@ const SYNC_FIELDS = {
   leases: ['unit_type', 'unit_id', 'property_id', 'tenant_id', 'start_date', 'end_date', 'annual_rent_fils', 'admin_fee_fils', 'extra_charges', 'deposit_fils', 'deposit_status', 'deposit_refunded_fils', 'schedule_type', 'payment_method', 'status', 'renewed_from'],
   payment_schedules: ['lease_id', 'property_id', 'seq', 'kind', 'label', 'due_date', 'amount_fils', 'method', 'status', 'paid_on', 'pdc_id', 'transaction_id'],
   pdcs: ['direction', 'cheque_no', 'bank', 'amount_fils', 'due_date', 'status', 'party', 'lease_id', 'schedule_id', 'property_id', 'replaced_by'],
-  transactions: ['doc_no', 'type', 'category', 'categories', 'splits', 'amount_fils', 'date', 'property_id', 'lease_id', 'tenant_id', 'method', 'reference'],
+  transactions: ['doc_no', 'type', 'category', 'categories', 'splits', 'lines', 'amount_fils', 'date', 'property_id', 'lease_id', 'tenant_id', 'method', 'reference'],
   expenses: ['doc_no', 'date', 'amount_fils', 'merchant', 'category', 'property_id', 'source'],
   bills: ['doc_no', 'name', 'provider', 'account_no', 'amount_fils', 'due_date', 'status', 'paid_on', 'property_id'],
   health_logs: ['kind', 'date', 'weight_kg', 'systolic', 'diastolic', 'pulse', 'sugar', 'sugar_unit', 'sugar_type', 'cycle_start', 'cycle_end'],
@@ -1742,7 +1742,7 @@ Object.assign(ACTIONS, {
    a ledger_accounts record with the same code only renames or deactivates them. Custom accounts
    get a code 'la_xxxxxxxx' and a type the user chooses. */
 const ACCT_TYPES = ['income', 'expense', 'asset', 'liability', 'equity'];
-const SYS_ACCTS = { rent: 'income', fees: 'income', commission_in: 'income', deposit_in: 'liability', deposit_refund: 'liability', landlord_rent: 'expense', other: 'expense',
+const SYS_ACCTS = { cash: 'asset', bank: 'asset', rent: 'income', fees: 'income', commission_in: 'income', deposit_in: 'liability', deposit_refund: 'liability', landlord_rent: 'expense', other: 'expense',
   maintenance: 'expense', utilities: 'expense', cleaning: 'expense', furniture: 'expense', govt_fees: 'expense', commission: 'expense', groceries: 'expense', medical: 'expense', education: 'expense', transport: 'expense' };
 const REVENUE_CODES = ['rent', 'fees', 'commission_in', 'other'];
 let LEDGER = [];
@@ -1753,7 +1753,7 @@ async function loadLedger() {
   LEDGER = [...sys, ...custom];
 }
 const acctOf = (code) => LEDGER.find((a) => a.code === code);
-function acctName(code) { const a = acctOf(code); return a?.name || (SYS_ACCTS[code] ? t('cat_' + code) : code); }
+function acctName(code) { const a = acctOf(code); return a?.name || (SYS_ACCTS[code] || code === 'transfer' ? t('cat_' + code) : code); }
 /** Type of a custom account (null for built-in ones, whose accounting rules are fixed). */
 const customType = (code) => { const a = acctOf(code); return a && !a.system ? a.type : null; };
 const isRevenue = (x) => x.type === 'income' && (REVENUE_CODES.includes(x.category) || customType(x.category) === 'income');
@@ -1769,8 +1769,8 @@ function acctOpts(sysCodes, types, keep = []) {
    {YYYY} {YY} {MM}; the counter then restarts for each new prefix. The next number is always
    max(start, highest number already used with this prefix + 1), so numbers synced in from other
    devices are taken into account and a number is never reused on this device. */
-const DOC_SERIES = { bills: { def: 'BIL', stores: ['bills'] }, expenses: { def: 'EXP', stores: ['expenses'] }, payments: { def: 'PAY', stores: ['transactions'] }, receipts: { def: 'RCT', stores: ['transactions'] } };
-function docSeriesOf(store, r) { return store === 'bills' ? 'bills' : store === 'expenses' ? 'expenses' : store === 'transactions' ? (r.type === 'expense' ? 'payments' : 'receipts') : null; }
+const DOC_SERIES = { bills: { def: 'BIL', stores: ['bills'] }, expenses: { def: 'EXP', stores: ['expenses'] }, payments: { def: 'PAY', stores: ['transactions'] }, receipts: { def: 'RCT', stores: ['transactions'] }, transfers: { def: 'TRF', stores: ['transactions'] } };
+function docSeriesOf(store, r) { return store === 'bills' ? 'bills' : store === 'expenses' ? 'expenses' : store === 'transactions' ? (r.type === 'expense' ? 'payments' : r.type === 'transfer' ? 'transfers' : 'receipts') : null; }
 async function docFormat(series) { return { prefix: DOC_SERIES[series].def, sep: '-', digits: 4, start: 1, on: true, ...(await meta.get('docfmt:' + series, {})) }; }
 function docPrefix(f, iso) { const d = ymd(iso || nowISO()); return f.prefix.replace(/\{YYYY\}/g, d.slice(0, 4)).replace(/\{YY\}/g, d.slice(2, 4)).replace(/\{MM\}/g, d.slice(5, 7)) + (f.prefix ? f.sep : ''); }
 const docFormatNo = (f, n, iso) => docPrefix(f, iso) + String(n).padStart(Math.max(1, Math.min(10, +f.digits || 1)), '0');
@@ -1803,8 +1803,8 @@ const docTag = (x) => (x.doc_no ? `<b style="color:var(--text)">${esc(x.doc_no)}
 /* ---------------- Transactions ---------------- */
 const TX_CATS = ['rent', 'fees', 'deposit_in', 'deposit_refund', 'commission_in', 'landlord_rent', 'other'];
 const txSelected = () => (S.params.cats || '').split(',').filter(Boolean);
-const txCatsOf = (x) => (Array.isArray(x.categories) && x.categories.length ? x.categories : [x.category]).filter(Boolean);
-const txCatLabel = (x) => txCatsOf(x).map((c) => acctName(c)).join(' + ');
+const txCatsOf = (x) => (x.type === 'transfer' ? [...new Set((x.lines || []).map((l) => l.account))] : (Array.isArray(x.categories) && x.categories.length ? x.categories : [x.category])).filter(Boolean);
+const txCatLabel = (x) => (x.type === 'transfer' ? `${(x.lines || []).filter((l) => l.side === 'from').map((l) => acctName(l.account)).join(' + ')} → ${(x.lines || []).filter((l) => l.side === 'to').map((l) => acctName(l.account)).join(' + ')}` : txCatsOf(x).map((c) => acctName(c)).join(' + '));
 /** Category shares of a transaction: its saved split when valid, otherwise the whole amount under its main category. */
 function txParts(x) {
   const sp = Array.isArray(x.splits) ? x.splits.filter((p) => p && p.category && Number.isFinite(p.amount_fils)) : [];
@@ -1826,80 +1826,113 @@ async function viewTransactions() {
   const filters = `<div class="card" style="margin-bottom:12px"><div class="row between" style="margin-bottom:8px"><b class="small">${esc(t('filter_categories'))}</b>
       <span class="small muted">${cats.length ? esc(t('n_selected', { n: cats.length })) : esc(t('all_categories'))}${cats.length ? ` · <a href="#" data-act="tx-cats-clear">${esc(t('clear'))}</a>` : ''}</span></div>
     <div class="chips" style="flex-wrap:wrap" role="group" aria-label="${esc(t('filter_categories'))}">${known.map((c) => `<button type="button" class="chip ${cats.includes(c) ? 'on' : ''}" aria-pressed="${cats.includes(c)}" data-act="tx-cat" data-c="${esc(c)}">${cats.includes(c) ? '✓ ' : ''}${esc(acctName(c))} · ${count(c)}</button>`).join('')}</div>
-    <div class="chips" style="margin-top:10px">${[['', t('all')], ['income', t('income')], ['expense', t('expense')]].map(([v, l]) => `<span class="chip ${type === v ? 'on' : ''}" data-act="tab" data-k="type" data-v="${v}">${esc(l)}</span>`).join('')}</div></div>
+    <div class="chips" style="margin-top:10px">${[['', t('all')], ['income', t('income')], ['expense', t('expense')], ['transfer', t('transfer')]].map(([v, l]) => `<span class="chip ${type === v ? 'on' : ''}" data-act="tab" data-k="type" data-v="${v}">${esc(l)}</span>`).join('')}</div></div>
     <div class="grid tx-stats" style="margin-bottom:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))"><div class="stat"><div class="l">${esc(t('income'))}</div><div class="v" style="font-size:22px;color:var(--green)">${fmtAED(inc)}</div></div>
       <div class="stat"><div class="l">${esc(t('expense'))}</div><div class="v" style="font-size:22px;color:var(--red)">${fmtAED(exp)}</div></div>
       <div class="stat accent"><div class="l">${esc(t('net'))} · ${esc(t('n_transactions', { n: rows.length }))}</div><div class="v" style="font-size:22px">${fmtAED(inc - exp)}</div></div></div>`;
   return pageHead(esc(t('r_transactions')), `<button class="btn primary" data-act="new-tx">${icon('plus')} ${esc(t('add'))}</button><button class="btn" data-act="tx-csv">${icon('download')} CSV</button>`) + filters +
     (rows.length ? `<div class="list">${rows.slice(0, 400).map((x) => `<button class="item" data-act="edit-tx" data-id="${x.id}"><div class="grow"><div class="t">${esc(txCatLabel(x))}</div><div class="s">${docTag(x)}${fmtDate(x.date)} · ${esc(props.find((p) => p.id === x.property_id)?.name || '')} · ${esc(t('pm_' + (x.method || 'Cash')))} ${esc(x.reference || '')}</div>${txSplitText(x) ? `<div class="s" style="color:var(--text)">${esc(txSplitText(x))}</div>` : ''}</div>
-      <span class="amt" style="color:${x.type === 'income' ? 'var(--green)' : 'var(--red)'}">${x.type === 'income' ? '+' : '−'}${fmtAED(x.amount_fils)}</span></button>`).join('')}</div>` : `<div class="empty">${esc(t('nothing_here'))}</div>`);
+      <span class="amt" style="color:${x.type === 'income' ? 'var(--green)' : x.type === 'transfer' ? 'var(--text)' : 'var(--red)'}">${x.type === 'income' ? '+' : x.type === 'transfer' ? '⇄ ' : '−'}${fmtAED(x.amount_fils)}</span></button>`).join('')}</div>` : `<div class="empty">${esc(t('nothing_here'))}</div>`);
 }
-async function txFields(rec) {
-  return [{ k: 'type', type: 'select', label: t('f_type'), req: true, opts: [['income', t('income')], ['expense', t('expense')]] },
-    { k: 'amount_fils', type: 'money', label: t('f_amount'), req: true, min: 1 }, { k: 'date', type: 'date', label: t('f_date'), req: true },
-    { k: 'categories', type: 'multi', label: t('f_categories'), req: true, full: true, help: t('cat_multi_help'), opts: acctOpts(TX_CATS, ACCT_TYPES, txCatsOf(rec || {})), from: (r) => txCatsOf(r) },
-    { k: 'property_id', type: 'select', label: t('f_property'), opts: await propertyOpts() }, { k: 'method', type: 'select', label: t('f_method'), opts: [['Cash', t('pm_Cash')], ['Cheque', t('pm_Cheque')], ['Transfer', t('pm_Transfer')]], def: 'Cash' },
-    { k: 'reference', label: t('f_reference') }, ...(await memberField()), { k: 'notes', type: 'textarea', label: t('f_notes'), full: true }];
+/* ---- Add/Edit Transaction: "From" (where the money comes from) and "To" (where it goes), each with rows.
+   Plain-language double entry: both sides must balance. Cash & bank items (Asset type) on one side make it
+   money in or money out; cash & bank on both sides is a transfer. Older fields (type, categories, splits,
+   category, amount_fils) are derived from the rows so lists, filters, accounting and sync keep working. */
+const isMoneyAcct = (code) => acctOf(code)?.type === 'asset';
+function txLinesOf(x) {
+  if (Array.isArray(x.lines) && x.lines.length) return x.lines;
+  if (!x.amount_fils) return [];
+  const inc = x.type !== 'expense';
+  return [...txParts(x).map((p) => ({ side: inc ? 'from' : 'to', account: p.category, amount_fils: p.amount_fils })), { side: inc ? 'to' : 'from', account: x.method === 'Cash' ? 'cash' : 'bank', amount_fils: x.amount_fils }];
 }
-/** `category` keeps the largest share (or the only category) so older app versions keep working; accounting uses txParts(). */
-function txNorm(x, splits) {
-  const categories = [...new Set(x.categories || [])]; const sp = categories.length > 1 ? splits || [] : [];
-  const main = sp.length ? [...sp].sort((a, b) => b.amount_fils - a.amount_fils)[0].category : categories[0] || x.category || 'other';
-  return { ...x, categories, splits: sp, category: main };
+const TX_GROUPS = ['asset', 'income', 'expense', 'liability', 'equity'];
+function txAcctSelect(cur) {
+  const keep = cur ? [cur] : [];
+  const opts = (ty) => LEDGER.filter((a) => a.type === ty && (a.active || keep.includes(a.code))).sort((a, b) => (a.system === b.system ? 0 : a.system ? -1 : 1) || acctName(a.code).localeCompare(acctName(b.code)))
+    .map((a) => `<option value="${esc(a.code)}" ${a.code === cur ? 'selected' : ''}>${esc(acctName(a.code))}</option>`).join('');
+  return `<select class="inp" data-acct aria-label="${esc(t('tx_item'))}"><option value="" ${cur ? '' : 'selected'}>${esc(t('choose'))}</option>${TX_GROUPS.map((ty) => { const o = opts(ty); return o ? `<optgroup label="${esc(t('grp_' + ty))}">${o}</optgroup>` : ''; }).join('')}</select>`;
 }
-/** Adds the "split the amount" box under the categories on the transaction form. Returns a collector for onSave. */
-function mountTxSplits(el, rec) {
-  const form = el.querySelector('form'); const host = form.querySelector('[data-field="categories"]'); const amt = form.querySelector('[name="amount_fils"]');
-  const box = document.createElement('div'); box.className = 'field full'; box.dataset.field = 'splits'; host.after(box);
-  const vals = Object.fromEntries((rec.splits || []).map((p) => [p.category, filsToInput(p.amount_fils)]));
-  const ticked = () => [...form.querySelectorAll('[name="categories"]:checked')].map((e) => e.value);
-  const total = () => { const v = parseFils(amt.value.trim()); return Number.isFinite(v) ? v : 0; };
-  const fils = (c) => { const v = parseFils((vals[c] || '').trim()); return v; };
-  const upd = () => {
-    const st = box.querySelector('[data-split-status]'); if (!st) return;
-    const cs = ticked(); const used = cs.reduce((a, c) => a + (Number.isFinite(fils(c)) ? fils(c) : 0), 0); const rem = total() - used;
-    st.textContent = t('split_status', { used: fmtAED(used), total: fmtAED(total()), rem: fmtAED(rem) });
-    st.style.color = rem === 0 ? 'var(--green)' : rem < 0 ? 'var(--red)' : 'var(--muted)';
-    const empty = cs.filter((c) => fils(c) === null); box.querySelectorAll('[data-split]').forEach((i) => { i.placeholder = empty.length === 1 && empty[0] === i.dataset.split && rem > 0 ? filsToInput(rem) : '0.00'; });
+/** Works out what the rows mean. Returns { kind, err } — kind: income | expense | transfer. */
+function txClassify(from, to) {
+  const mf = from.filter((l) => isMoneyAcct(l.account)); const mt = to.filter((l) => isMoneyAcct(l.account));
+  const of = from.length - mf.length; const ot = to.length - mt.length;
+  if (!of && !ot) return mf.length && mt.length ? { kind: 'transfer' } : { err: t('err_lines_both') };
+  if (!ot && !mf.length && mt.length) return { kind: 'income' };
+  if (!of && !mt.length && mf.length) return { kind: 'expense' };
+  return { err: t('err_lines_mix') };
+}
+function mountTxLines(el, rec) {
+  const form = el.querySelector('form'); const host = document.createElement('div'); host.className = 'full tx-lines'; host.dataset.field = 'lines';
+  const grid = form.querySelector('.formgrid'); grid.insertBefore(host, grid.querySelector('[data-field="method"]') || grid.firstChild.nextSibling);
+  const src = txLinesOf(rec);
+  const L = { from: [], to: [] };
+  for (const l of src) L[l.side === 'to' ? 'to' : 'from'].push({ account: l.account, amt: filsToInput(l.amount_fils), auto: false });
+  if (!L.from.length) L.from.push({ account: 'rent', amt: '', auto: false });
+  if (!L.to.length) L.to.push({ account: 'cash', amt: '', auto: true });
+  const fils = (v) => { const n = parseFils(String(v || '').trim()); return Number.isFinite(n) ? n : 0; };
+  const total = (side) => L[side].reduce((a, l) => a + fils(l.amt), 0);
+  const other = (side) => (side === 'from' ? 'to' : 'from');
+  const mirror = () => { for (const side of ['from', 'to']) { const r = L[side]; if (r.length === 1 && r[0].auto) { const v = total(other(side)); r[0].amt = v ? filsToInput(v) : ''; const inp = host.querySelector(`[data-side="${side}"] [data-amt]`); if (inp) inp.value = r[0].amt; } } };
+  const status = () => {
+    mirror();
+    const f = total('from'); const tt = total('to'); const diff = f - tt;
+    host.querySelector('[data-sum="from"]').textContent = fmtAED(f); host.querySelector('[data-sum="to"]').textContent = fmtAED(tt);
+    const filled = (side) => L[side].filter((l) => l.account);
+    const c = txClassify(filled('from'), filled('to')); const bal = host.querySelector('[data-bal]');
+    const kindTxt = c.kind ? `<span class="badge ${c.kind === 'income' ? 'paid' : c.kind === 'expense' ? 'overdue' : ''}">${esc(t('kind_' + c.kind))}</span>` : `<span class="small" style="color:var(--amber,#f5a524)">${esc(c.err || '')}</span>`;
+    bal.innerHTML = `${kindTxt}<span class="small" style="margin-inline-start:auto;font-weight:700;color:${diff === 0 && f ? 'var(--green)' : diff ? 'var(--red)' : 'var(--muted)'}">${diff === 0 ? (f ? '✓ ' + esc(t('balanced')) : esc(t('enter_amounts'))) : esc(t('difference', { amt: fmtAED(Math.abs(diff)) }))}</span>`;
+    // payment method follows the cash/bank item
+    const money = [...L.from, ...L.to].find((l) => isMoneyAcct(l.account)); const m = form.querySelector('[name="method"]');
+    if (money && m && !m.dataset.touched) m.value = money.account === 'cash' ? 'Cash' : m.value === 'Cash' ? 'Transfer' : m.value;
   };
+  const sideHTML = (side) => `<div class="tx-side" data-side="${side}"><div class="tx-side-h"><b>${esc(t('tx_' + side))}</b><span class="tiny muted">${esc(t('tx_' + side + '_hint'))}</span><span class="tx-sum" data-sum="${side}"></span></div>
+    ${L[side].map((l, i) => `<div class="tx-line" data-i="${i}">${txAcctSelect(l.account)}<div class="money"><input class="inp" data-amt inputmode="decimal" autocomplete="off" value="${esc(l.amt)}" placeholder="0.00" aria-label="${esc(t('f_amount'))}"></div>
+      <button type="button" class="btn sm ghost tx-del" data-del aria-label="${esc(t('remove_row'))}" ${L[side].length < 2 ? 'disabled' : ''}>×</button></div>`).join('')}
+    <button type="button" class="btn sm ghost" data-add>${icon('plus')} ${esc(t('add_row'))}</button></div>`;
   const render = () => {
-    const cs = ticked(); box.classList.remove('err'); box.style.display = cs.length > 1 ? '' : 'none';
-    if (cs.length < 2) { box.innerHTML = ''; return; }
-    box.innerHTML = `<label>${esc(t('split_amount'))} <span class="req">*</span></label>
-      <div style="display:grid;gap:8px;margin-top:6px">${cs.map((c) => `<div class="row" style="gap:12px;align-items:center"><span style="flex:1;font-weight:700;font-size:14px">${esc(acctName(c))}</span>
-        <div class="money" style="flex:0 0 190px"><input class="inp" data-split="${esc(c)}" inputmode="decimal" autocomplete="off" value="${esc(vals[c] || '')}" aria-label="${esc(acctName(c))} — ${esc(t('f_amount'))}"></div></div>`).join('')}</div>
-      <div class="row between" style="margin-top:8px;gap:8px;flex-wrap:wrap"><span class="small" data-split-status></span><button type="button" class="btn sm ghost" data-split-even>${esc(t('split_evenly'))}</button></div>
-      <span class="tiny muted">${esc(t('split_help'))}</span><span class="msg"></span>`;
-    upd();
+    host.innerHTML = `${sideHTML('from')}<div class="tx-swap"><button type="button" class="btn sm" data-swap title="${esc(t('swap_sides'))}">⇅ ${esc(t('swap_sides'))}</button></div>${sideHTML('to')}<div class="tx-bal" data-bal></div><span class="msg"></span>`;
+    status();
   };
-  box.addEventListener('input', (e) => { const c = e.target.dataset?.split; if (c) { vals[c] = e.target.value; box.classList.remove('err'); const m = box.querySelector('.msg'); if (m) m.textContent = ''; upd(); } });
-  box.addEventListener('click', (e) => {
-    if (!e.target.closest('[data-split-even]')) return; e.preventDefault();
-    const cs = ticked(); const tot = total(); const each = Math.floor(tot / cs.length);
-    cs.forEach((c, i) => { vals[c] = filsToInput(each + (i === 0 ? tot - each * cs.length : 0)); }); render();
+  const at = (e) => { const s = e.target.closest('[data-side]')?.dataset.side; const i = +e.target.closest('[data-i]')?.dataset.i; return [s, i]; };
+  host.addEventListener('input', (e) => { const [s, i] = at(e); if (!s || Number.isNaN(i)) return; if (e.target.matches('[data-amt]')) { L[s][i].amt = e.target.value; L[s][i].auto = false; host.classList.remove('err'); host.querySelector('.msg').textContent = ''; status(); } });
+  host.addEventListener('change', (e) => { const [s, i] = at(e); if (s && !Number.isNaN(i) && e.target.matches('[data-acct]')) { L[s][i].account = e.target.value; host.classList.remove('err'); host.querySelector('.msg').textContent = ''; status(); } });
+  host.addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return; e.preventDefault(); const [s, i] = at(e);
+    if (b.matches('[data-add]')) { L[s].forEach((l) => (l.auto = false)); L[s].push({ account: '', amt: '', auto: false }); render(); host.querySelector(`[data-side="${s}"] .tx-line:last-of-type select`)?.focus(); }
+    else if (b.matches('[data-del]')) { L[s].splice(i, 1); render(); }
+    else if (b.matches('[data-swap]')) { [L.from, L.to] = [L.to, L.from]; render(); }
   });
-  form.addEventListener('change', (e) => { if (e.target.name === 'categories') render(); });
-  amt.addEventListener('input', upd);
+  form.querySelector('[name="method"]')?.addEventListener('change', (e) => { e.target.dataset.touched = '1'; });
   render();
   return () => {
-    const cs = ticked(); if (cs.length < 2) return { splits: [] };
-    const tot = total(); const parts = cs.map((c) => ({ category: c, amount_fils: fils(c) }));
-    const empty = parts.filter((p) => p.amount_fils === null);
-    if (empty.length === 1) empty[0].amount_fils = tot - parts.filter((p) => p !== empty[0]).reduce((a, p) => a + p.amount_fils, 0);
-    let err = '';
-    if (parts.some((p) => !empty.includes(p) && (!Number.isFinite(p.amount_fils) || p.amount_fils <= 0))) err = t('err_split_zero');
-    else if (empty.length > 1) err = t('err_split_zero');
-    else if (parts.some((p) => p.amount_fils <= 0)) err = t('err_split_total', { total: fmtAED(tot) });
-    else if (parts.reduce((a, p) => a + p.amount_fils, 0) !== tot) err = t('err_split_total', { total: fmtAED(tot) });
-    if (err) { box.classList.add('err'); box.querySelector('.msg').textContent = err; toast(err, 'err'); box.querySelector('[data-split]')?.focus(); return { err }; }
-    return { splits: parts };
+    const fail = (msg) => { host.classList.add('err'); host.querySelector('.msg').textContent = msg; toast(msg, 'err'); return { err: msg }; };
+    const rows = {}; for (const side of ['from', 'to']) {
+      rows[side] = [];
+      for (const l of L[side]) { const v = parseFils(String(l.amt || '').trim()); if (!l.account && (v === null || v === 0)) continue;
+        if (!l.account) return fail(t('err_line_item')); if (!Number.isFinite(v) || v <= 0) return fail(t('err_line_amount'));
+        rows[side].push({ side, account: l.account, amount_fils: v }); }
+    }
+    if (!rows.from.length || !rows.to.length) return fail(t('err_lines_both'));
+    if (rows.from.some((a) => rows.to.some((b) => b.account === a.account))) return fail(t('err_line_same'));
+    const tf = rows.from.reduce((a, l) => a + l.amount_fils, 0); const tt = rows.to.reduce((a, l) => a + l.amount_fils, 0);
+    if (tf !== tt) return fail(t('err_lines_balance', { amt: fmtAED(Math.abs(tf - tt)) }));
+    const c = txClassify(rows.from, rows.to); if (c.err) return fail(c.err);
+    const merge = (ls) => { const m = new Map(); for (const l of ls) m.set(l.account, (m.get(l.account) || 0) + l.amount_fils); return [...m].map(([category, amount_fils]) => ({ category, amount_fils })); };
+    const others = c.kind === 'income' ? merge(rows.from) : c.kind === 'expense' ? merge(rows.to) : [];
+    const main = others.length ? [...others].sort((a, b) => b.amount_fils - a.amount_fils)[0].category : 'transfer';
+    return { type: c.kind, lines: [...rows.from, ...rows.to], amount_fils: tf, categories: others.map((o) => o.category), splits: others.length > 1 ? others : [], category: main };
   };
 }
+async function txFields() {
+  return [{ k: 'date', type: 'date', label: t('f_date'), req: true },
+    { k: 'method', type: 'select', label: t('f_method'), opts: [['Cash', t('pm_Cash')], ['Cheque', t('pm_Cheque')], ['Transfer', t('pm_Transfer')]], def: 'Cash' },
+    { k: 'property_id', type: 'select', label: t('f_property'), opts: await propertyOpts() }, { k: 'reference', label: t('f_reference') }, ...(await memberField()), { k: 'notes', type: 'textarea', label: t('f_notes'), full: true }];
+}
 async function txSheet(rec, extra) {
-  let collect = () => ({ splits: [] });
-  return formSheet({ title: rec.id ? (rec.doc_no || t('edit')) : t('add_transaction'), fields: await txFields(rec), rec, extraHTML: extra || '',
-    onMount: (el) => { collect = mountTxSplits(el, rec); },
-    onSave: async (x) => { const r = collect(); if (r.err) return false; await save('transactions', txNorm({ ...rec, ...x }, r.splits)); refresh(); } });
+  let collect = () => ({ err: 'not ready' });
+  return formSheet({ title: rec.id ? (rec.doc_no || t('edit')) : t('add_transaction'), fields: await txFields(), rec, extraHTML: extra || '',
+    onMount: (el) => { const sh = el.closest?.('.sheet') || el.querySelector('.sheet'); if (sh) sh.style.maxWidth = '820px'; collect = mountTxLines(el, rec); },
+    onSave: async (x) => { const r = collect(); if (r.err) return false; await save('transactions', { ...rec, ...x, ...r }); refresh(); } });
 }
 function setTxCats(cats) { const p = new URLSearchParams(location.hash.split('?')[1] || ''); if (cats.length) p.set('cats', cats.join(',')); else p.delete('cats'); go('#/transactions' + (p.toString() ? '?' + p : '')); }
 Object.assign(ACTIONS, {
@@ -2413,7 +2446,7 @@ Object.assign(ACTIONS, {
 /* ---------------- Settings ---------------- */
 async function ledgerUsage() {
   const use = {}; const add = (c) => { if (c) use[c] = (use[c] || 0) + 1; };
-  for (const x of await list('transactions')) new Set([...txCatsOf(x), ...txParts(x).map((p) => p.category)]).forEach(add);
+  for (const x of await list('transactions')) new Set([...txCatsOf(x), ...txParts(x).map((p) => p.category), ...(x.lines || []).map((l) => l.account)]).forEach(add);
   for (const x of await list('expenses')) add(x.category);
   return use;
 }
@@ -2491,14 +2524,14 @@ Object.assign(ACTIONS, {
   },
   'print-tx': async (d) => {
     const x = await getRec('transactions', d.id); if (!x) return;
-    const inc = x.type === 'income'; const prop = await getRec('properties', x.property_id); const ten = await getRec('tenants', x.tenant_id);
-    const parts = txParts(x);
+    const inc = x.type === 'income'; const trf = x.type === 'transfer'; const prop = await getRec('properties', x.property_id); const ten = await getRec('tenants', x.tenant_id);
+    const lines = txLinesOf(x);
     printHTML(x.doc_no || 'Voucher', `<div class="brand"><div><div class="logo"><span>Digitz</span> PMS</div><div class="muted">${esc(S.agency?.company || S.user?.name || '')}</div></div>
-      <div style="text-align:right"><h1>${inc ? 'Receipt Voucher' : 'Payment Voucher'}</h1><div>${inc ? 'രസീത് വൗച്ചർ' : 'പേയ്മെന്റ് വൗച്ചർ'}</div><div class="big">${esc(x.doc_no || '—')}</div><div class="muted">${fmtDate(x.date)}</div></div></div>
+      <div style="text-align:right"><h1>${trf ? 'Transfer Voucher' : inc ? 'Receipt Voucher' : 'Payment Voucher'}</h1><div>${trf ? 'ട്രാൻസ്ഫർ വൗച്ചർ' : inc ? 'രസീത് വൗച്ചർ' : 'പേയ്മെന്റ് വൗച്ചർ'}</div><div class="big">${esc(x.doc_no || '—')}</div><div class="muted">${fmtDate(x.date)}</div></div></div>
       <div class="grid"><div class="box"><div class="muted">${inc ? 'Received from / ലഭിച്ചത്' : 'Paid to / നൽകിയത്'}</div><b>${esc(ten?.name || prop?.owner_name || '—')}</b></div>
         <div class="box"><div class="muted">Property / പ്രോപ്പർട്ടി</div><b>${esc(prop?.name || '—')}</b></div></div>
-      <table><thead><tr><th>Ledger Account / ലെഡ്ജർ അക്കൗണ്ട്</th><th class="num">Amount (AED)</th></tr></thead><tbody>${parts.map((p) => `<tr><td>${esc(acctName(p.category))}</td><td class="num">${fmtAED(p.amount_fils)}</td></tr>`).join('')}
-        <tr class="tot"><td>Total / ആകെ</td><td class="num">${fmtAED(x.amount_fils)}</td></tr></tbody></table>
+      <table><thead><tr><th style="width:90px"></th><th>Item / ഇനം</th><th class="num">Amount (AED)</th></tr></thead><tbody>${['from', 'to'].map((sd) => lines.filter((l) => l.side === sd).map((l, i) => `<tr><td class="muted">${i ? '' : sd === 'from' ? 'From / നിന്ന്' : 'To / ലേക്ക്'}</td><td>${esc(acctName(l.account))}</td><td class="num">${fmtAED(l.amount_fils)}</td></tr>`).join('')).join('')}
+        <tr class="tot"><td></td><td>Total / ആകെ</td><td class="num">${fmtAED(x.amount_fils)}</td></tr></tbody></table>
       <p>Method / രീതി: <b>${esc(x.method || '—')}</b>${x.reference ? ` · Ref: ${esc(x.reference)}` : ''}</p>${x.notes ? `<p class="muted">${esc(x.notes)}</p>` : ''}
       <div class="grid" style="margin-top:48px"><div style="border-top:1px solid #999;padding-top:6px">Signature / ഒപ്പ്</div><div style="border-top:1px solid #999;padding-top:6px">${inc ? 'Received by' : 'Approved by'}</div></div>
       <footer>Generated by Digitz PMS · ${fmtDateTime(nowISO())}</footer>`);
@@ -2736,6 +2769,16 @@ Object.assign(ACTIONS, {
    Format: [key, English, Malayalam]
    ===================================================================== */
 const I18N_ROWS = [
+['tx_from', 'From', 'നിന്ന്'], ['tx_to', 'To', 'ലേക്ക്'], ['tx_from_hint', 'where the money comes from', 'പണം എവിടെ നിന്ന് വരുന്നു'], ['tx_to_hint', 'where the money goes', 'പണം എവിടേക്ക് പോകുന്നു'],
+['tx_item', 'Item', 'ഇനം'], ['add_row', 'Add row', 'വരി ചേർക്കുക'], ['remove_row', 'Remove row', 'വരി നീക്കുക'], ['swap_sides', 'Swap', 'പരസ്പരം മാറ്റുക'],
+['balanced', 'Balanced', 'ഒത്തുവന്നു'], ['enter_amounts', 'Enter the amounts', 'തുകകൾ നൽകുക'], ['difference', 'Difference {amt}', 'വ്യത്യാസം {amt}'],
+['kind_income', 'Money in · Receipt', 'പണം വരവ് · രസീത്'], ['kind_expense', 'Money out · Payment', 'പണം ചെലവ് · പേയ്മെന്റ്'], ['kind_transfer', 'Transfer between your cash & bank', 'നിങ്ങളുടെ ക്യാഷ് & ബാങ്കിനിടയിലെ ട്രാൻസ്ഫർ'],
+['grp_asset', 'Cash & bank', 'ക്യാഷ് & ബാങ്ക്'], ['grp_income', 'Income', 'വരുമാനം'], ['grp_expense', 'Expenses', 'ചെലവുകൾ'], ['grp_liability', 'Deposits & amounts owed', 'ഡെപ്പോസിറ്റുകളും നൽകാനുള്ളതും'], ['grp_equity', "Owner's funds", 'ഉടമയുടെ ഫണ്ട്'],
+['err_line_item', 'Choose an item for every row that has an amount.', 'തുകയുള്ള ഓരോ വരിക്കും ഒരു ഇനം തിരഞ്ഞെടുക്കുക.'], ['err_line_amount', 'Enter an amount above zero in every row.', 'ഓരോ വരിയിലും പൂജ്യത്തിന് മുകളിലുള്ള തുക നൽകുക.'],
+['err_lines_both', 'Fill in at least one row in both From and To, with Cash or Bank on one side.', 'From, To എന്നിവയിൽ കുറഞ്ഞത് ഓരോ വരി പൂരിപ്പിക്കുക, ഒരു വശത്ത് ക്യാഷോ ബാങ്കോ വേണം.'],
+['err_lines_mix', 'Put Cash or Bank on one side and everything else on the other. For a transfer, use only Cash or Bank on both sides.', 'ഒരു വശത്ത് ക്യാഷ് അല്ലെങ്കിൽ ബാങ്ക്, മറുവശത്ത് ബാക്കിയെല്ലാം. ട്രാൻസ്ഫറിന് ഇരുവശത്തും ക്യാഷ്/ബാങ്ക് മാത്രം.'],
+['err_line_same', 'The same item can’t be on both sides.', 'ഒരേ ഇനം ഇരുവശത്തും പാടില്ല.'], ['err_lines_balance', 'From and To must be equal — difference {amt}.', 'From, To തുല്യമായിരിക്കണം — വ്യത്യാസം {amt}.'],
+['cat_cash', 'Cash in hand', 'കൈയിലുള്ള പണം'], ['cat_bank', 'Bank account', 'ബാങ്ക് അക്കൗണ്ട്'], ['cat_transfer', 'Transfer', 'ട്രാൻസ്ഫർ'], ['transfer', 'Transfer', 'ട്രാൻസ്ഫർ'], ['series_transfers', 'Transfers', 'ട്രാൻസ്ഫറുകൾ'],
 ['r_ledger', 'Ledger Accounts', 'ലെഡ്ജർ അക്കൗണ്ടുകൾ'], ['general', 'General', 'പൊതുവായത്'], ['f_ledger_account', 'Ledger Account', 'ലെഡ്ജർ അക്കൗണ്ട്'], ['f_account_type', 'Account Type', 'അക്കൗണ്ട് തരം'],
 ['at_income', 'Income', 'വരുമാനം'], ['at_expense', 'Expense', 'ചെലവ്'], ['at_asset', 'Asset', 'ആസ്തി'], ['at_liability', 'Liability', 'ബാധ്യത'], ['at_equity', 'Equity', 'മൂലധനം'],
 ['add_ledger_account', 'Add ledger account', 'ലെഡ്ജർ അക്കൗണ്ട് ചേർക്കുക'], ['acct_builtin', 'Built-in', 'ബിൽറ്റ്-ഇൻ'], ['acct_custom', 'Custom', 'കസ്റ്റം'], ['n_used', 'Used {n}×', '{n} തവണ ഉപയോഗിച്ചു'],
