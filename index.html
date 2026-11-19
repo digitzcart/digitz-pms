@@ -74,7 +74,7 @@ h1{font-size:clamp(30px,7vw,52px)}h2{font-size:clamp(20px,4.5vw,28px)}h3{font-si
 .btn svg{width:18px;height:18px}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;background:var(--surface2);border:1px solid var(--line);font-size:12.5px;font-weight:700;white-space:nowrap}
 .chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
-@media(min-width:760px){#txform .formgrid{grid-template-columns:repeat(6,minmax(0,1fr))}#txform .formgrid>.field{grid-column:span 3}#txform .formgrid>[data-field=date],#txform .formgrid>[data-field=reference],#txform .formgrid>[data-field=family_member_id]{grid-column:span 2}#txform .formgrid>.full{grid-column:1/-1}}.tx-lines{display:grid;gap:10px}.tx-side{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--surface2)}.tx-side-h{display:flex;align-items:baseline;gap:8px;margin-bottom:10px;flex-wrap:wrap}.tx-side-h b{font-size:15px;text-transform:uppercase;letter-spacing:.04em}.tx-sum{margin-inline-start:auto;font-weight:800}.tx-line{display:grid;grid-template-columns:minmax(0,1fr) 170px 38px;gap:8px;margin-bottom:8px;align-items:center}.tx-line .tx-del{padding:0;height:38px;font-size:18px}.tx-swap{display:flex;justify-content:center;margin:-4px 0}.tx-bal{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:1px dashed var(--line)}.tx-lines.err .tx-bal{border-color:var(--red)}@media(max-width:560px){.tx-line{grid-template-columns:minmax(0,1fr) 120px 34px}}.chips .chip{cursor:pointer}.chip.pick{position:relative;cursor:pointer;padding:8px 13px;font-size:13px}.chip.pick input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}.chip.pick:has(input:checked){background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}.chip.pick:has(input:checked)::before{content:'✓'}.chip.pick:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}.field.err .chips{outline:1px solid var(--red);border-radius:12px;padding:6px}.chips .chip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+@media(min-width:760px){#txform .formgrid{grid-template-columns:repeat(6,minmax(0,1fr))}#txform .formgrid>.field{grid-column:span 3}#txform .formgrid>[data-field=date],#txform .formgrid>[data-field=reference],#txform .formgrid>[data-field=family_member_id]{grid-column:span 2}#txform .formgrid>.full{grid-column:1/-1}}.tx-tbl tbody tr:hover{background:var(--surface2)}.tx-tbl td,.tx-tbl th{padding:11px 14px}.tx-lines{display:grid;gap:10px}.tx-side{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--surface2)}.tx-side-h{display:flex;align-items:baseline;gap:8px;margin-bottom:10px;flex-wrap:wrap}.tx-side-h b{font-size:15px;text-transform:uppercase;letter-spacing:.04em}.tx-sum{margin-inline-start:auto;font-weight:800}.tx-line{display:grid;grid-template-columns:minmax(0,1fr) 170px 38px;gap:8px;margin-bottom:8px;align-items:center}.tx-line .tx-del{padding:0;height:38px;font-size:18px}.tx-swap{display:flex;justify-content:center;margin:-4px 0}.tx-bal{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:1px dashed var(--line)}.tx-lines.err .tx-bal{border-color:var(--red)}@media(max-width:560px){.tx-line{grid-template-columns:minmax(0,1fr) 120px 34px}}.chips .chip{cursor:pointer}.chip.pick{position:relative;cursor:pointer;padding:8px 13px;font-size:13px}.chip.pick input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}.chip.pick:has(input:checked){background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}.chip.pick:has(input:checked)::before{content:'✓'}.chip.pick:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}.field.err .chips{outline:1px solid var(--red);border-radius:12px;padding:6px}.chips .chip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:800;letter-spacing:.02em;white-space:nowrap}
 .b-Vacant,.b-Cleared,.b-paid,.b-Paid,.b-Active,.b-Held,.b-Refunded{background:color-mix(in srgb,var(--green) 22%,transparent);color:var(--green)}
 .b-Booked,.b-Deposited,.b-Trial,.b-Partial,.b-Renewed{background:color-mix(in srgb,var(--blue) 22%,transparent);color:var(--blue)}
@@ -1816,6 +1816,22 @@ function txParts(x) {
 function txFlat(tx) { return tx.flatMap((x) => txParts(x).map((p) => ({ ...x, category: p.category, amount_fils: p.amount_fils }))); }
 const txSplitText = (x) => { const ps = txParts(x); return ps.length > 1 ? ps.map((p) => `${acctName(p.category)} ${fmtAED(p.amount_fils)}`).join(' + ') : ''; };
 function txFilterRows(all, cats, type) { return all.filter((x) => (!cats.length || txCatsOf(x).some((c) => cats.includes(c))) && (!type || x.type === type)); }
+/** Transactions table: Date · Voucher No. · Name · Amount. Sorted by voucher number unless a header is clicked. */
+async function txTable(rows, props) {
+  const tenants = await list('tenants'); const tname = (x) => tenants.find((tn) => tn.id === x.tenant_id)?.name || '';
+  const nameOf = (x) => tname(x) || txCatLabel(x);
+  const sort = S.params.sort || 'no'; const dir = S.params.dir === 'desc' ? -1 : 1;
+  const cmpNo = (a, b) => (!a.doc_no ? 1 : !b.doc_no ? -1 : a.doc_no.localeCompare(b.doc_no, undefined, { numeric: true }) * dir);
+  const cmp = { no: cmpNo, date: (a, b) => String(a.date).localeCompare(String(b.date)) * dir || cmpNo(a, b), name: (a, b) => nameOf(a).localeCompare(nameOf(b)) * dir || cmpNo(a, b), amount: (a, b) => (a.amount_fils - b.amount_fils) * dir || cmpNo(a, b) }[sort] || cmpNo;
+  const sorted = rows.slice().sort(cmp).slice(0, 400);
+  const th = (k, label, cls = '') => `<th class="${cls}" aria-sort="${sort === k ? (dir > 0 ? 'ascending' : 'descending') : 'none'}"><a href="#" data-act="tx-sort" data-s="${k}" style="color:inherit;text-decoration:none;white-space:nowrap">${esc(label)}${sort === k ? (dir > 0 ? ' ▲' : ' ▼') : ''}</a></th>`;
+  return `<div class="card tblwrap" style="padding:0"><table class="tbl tx-tbl"><thead><tr>${th('date', t('f_date'))}${th('no', t('voucher_no'))}${th('name', t('f_name_col'))}${th('amount', t('f_amount'), 'num')}</tr></thead><tbody>
+    ${sorted.map((x) => { const nm = tname(x); const sub = [nm ? txCatLabel(x) : '', props.find((p) => p.id === x.property_id)?.name || '', t('pm_' + (x.method || 'Cash'))].filter(Boolean).join(' · ');
+      return `<tr data-act="edit-tx" data-id="${x.id}" style="cursor:pointer"><td style="white-space:nowrap">${fmtDate(x.date)}</td><td style="white-space:nowrap"><a href="#/record/${x.id}" style="font-weight:800;color:var(--text)">${esc(x.doc_no || '—')}</a></td>
+        <td><div style="font-weight:700">${esc(nm || txCatLabel(x))}</div><div class="tiny muted">${esc(sub)}</div></td>
+        <td class="num" style="font-weight:800;color:${x.type === 'income' ? 'var(--green)' : x.type === 'transfer' ? 'var(--text)' : 'var(--red)'}">${x.type === 'income' ? '+' : x.type === 'transfer' ? '⇄ ' : '−'}${fmtAED(x.amount_fils)}</td></tr>`; }).join('')}
+    </tbody></table></div>`;
+}
 async function viewTransactions() {
   const all = (await list('transactions')).sort(by('date', -1)); const props = await list('properties');
   const cats = txSelected(); const type = S.params.type || '';
@@ -1832,8 +1848,7 @@ async function viewTransactions() {
       <div class="stat"><div class="l">${esc(t('expense'))}</div><div class="v" style="font-size:22px;color:var(--red)">${fmtAED(exp)}</div></div>
       <div class="stat accent"><div class="l">${esc(t('net'))} · ${esc(t('n_transactions', { n: rows.length }))}</div><div class="v" style="font-size:22px">${fmtAED(inc - exp)}</div></div></div>`;
   return pageHead(esc(t('r_transactions')), `<a class="btn primary" href="#/record">${icon('plus')} ${esc(t('r_record'))}</a><button class="btn" data-act="tx-csv">${icon('download')} CSV</button>`) + filters +
-    (rows.length ? `<div class="list">${rows.slice(0, 400).map((x) => `<button class="item" data-act="edit-tx" data-id="${x.id}"><div class="grow"><div class="t">${esc(txCatLabel(x))}</div><div class="s">${docTag(x)}${fmtDate(x.date)} · ${esc(props.find((p) => p.id === x.property_id)?.name || '')} · ${esc(t('pm_' + (x.method || 'Cash')))} ${esc(x.reference || '')}</div>${txSplitText(x) ? `<div class="s" style="color:var(--text)">${esc(txSplitText(x))}</div>` : ''}</div>
-      <span class="amt" style="color:${x.type === 'income' ? 'var(--green)' : x.type === 'transfer' ? 'var(--text)' : 'var(--red)'}">${x.type === 'income' ? '+' : x.type === 'transfer' ? '⇄ ' : '−'}${fmtAED(x.amount_fils)}</span></button>`).join('')}</div>` : `<div class="empty">${esc(t('nothing_here'))}</div>`);
+    (rows.length ? await txTable(rows, props) : `<div class="empty">${esc(t('nothing_here'))}</div>`);
 }
 /* ---- Add/Edit Transaction: "From" (where the money comes from) and "To" (where it goes), each with rows.
    Plain-language double entry: both sides must balance. Cash & bank items (Asset type) on one side make it
@@ -1954,6 +1969,7 @@ function setTxCats(cats) { const p = new URLSearchParams(location.hash.split('?'
 Object.assign(ACTIONS, {
   'tx-cat': (d) => { const cur = txSelected(); setTxCats(cur.includes(d.c) ? cur.filter((c) => c !== d.c) : [...cur, d.c]); },
   'tx-cats-clear': () => setTxCats([]),
+  'tx-sort': (d) => { const p = new URLSearchParams(location.hash.split('?')[1] || ''); const cur = p.get('sort') || 'no'; p.set('dir', cur === d.s && p.get('dir') !== 'desc' ? 'desc' : 'asc'); p.set('sort', d.s); go('#/transactions?' + p); },
   'tx-csv': async () => {
     const props = await list('properties'); const rows = txFilterRows((await list('transactions')).sort(by('date', -1)), txSelected(), S.params.type || '');
     const cats = txSelected(); const sg = (x, v) => (x.type === 'expense' ? '-' : '') + filsToInput(v);
@@ -2784,6 +2800,7 @@ Object.assign(ACTIONS, {
    Format: [key, English, Malayalam]
    ===================================================================== */
 const I18N_ROWS = [
+['voucher_no', 'Voucher No.', 'വൗച്ചർ നമ്പർ'], ['f_name_col', 'Name', 'പേര്'],
 ['tx_from', 'From', 'നിന്ന്'], ['tx_to', 'To', 'ലേക്ക്'], ['tx_from_hint', 'where the money comes from', 'പണം എവിടെ നിന്ന് വരുന്നു'], ['tx_to_hint', 'where the money goes', 'പണം എവിടേക്ക് പോകുന്നു'],
 ['tx_item', 'Item', 'ഇനം'], ['add_row', 'Add row', 'വരി ചേർക്കുക'], ['remove_row', 'Remove row', 'വരി നീക്കുക'], ['swap_sides', 'Swap', 'പരസ്പരം മാറ്റുക'],
 ['balanced', 'Balanced', 'ഒത്തുവന്നു'], ['enter_amounts', 'Enter the amounts', 'തുകകൾ നൽകുക'], ['difference', 'Difference {amt}', 'വ്യത്യാസം {amt}'],
