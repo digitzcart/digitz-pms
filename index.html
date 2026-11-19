@@ -1880,7 +1880,7 @@ Object.assign(ACTIONS, {
   'tx-csv': async () => {
     const props = await list('properties'); const rows = txFilterRows((await list('transactions')).sort(by('date', -1)), txSelected(), S.params.type || '');
     const cats = txSelected(); const sg = (x, v) => (x.type === 'expense' ? '-' : '') + filsToInput(v);
-    const out = [['No.', 'Date', 'Type', 'Category', 'Amount (AED)', 'Transaction total (AED)', 'Property', 'Method', 'Reference', 'Notes']];
+    const out = [['No.', 'Date', 'Type', 'Ledger Account', 'Amount (AED)', 'Transaction total (AED)', 'Property', 'Method', 'Reference', 'Notes']];
     for (const x of rows) for (const p of txParts(x)) if (!cats.length || cats.includes(p.category)) out.push([x.doc_no || '', fmtDate(x.date), x.type, t('cat_' + p.category), sg(x, p.amount_fils), sg(x, x.amount_fils), props.find((q) => q.id === x.property_id)?.name || '', x.method || '', x.reference || '', x.notes || '']);
     download(`transactions-${todayYMD()}.csv`, toCSV(out), 'text/csv');
   },
@@ -2428,7 +2428,7 @@ Object.assign(ACTIONS, {
       <div style="text-align:right"><h1>${inc ? 'Receipt Voucher' : 'Payment Voucher'}</h1><div>${inc ? 'രസീത് വൗച്ചർ' : 'പേയ്മെന്റ് വൗച്ചർ'}</div><div class="big">${esc(x.doc_no || '—')}</div><div class="muted">${fmtDate(x.date)}</div></div></div>
       <div class="grid"><div class="box"><div class="muted">${inc ? 'Received from / ലഭിച്ചത്' : 'Paid to / നൽകിയത്'}</div><b>${esc(ten?.name || prop?.owner_name || '—')}</b></div>
         <div class="box"><div class="muted">Property / പ്രോപ്പർട്ടി</div><b>${esc(prop?.name || '—')}</b></div></div>
-      <table><thead><tr><th>Category / വിഭാഗം</th><th class="num">Amount (AED)</th></tr></thead><tbody>${parts.map((p) => `<tr><td>${esc(t('cat_' + p.category))}</td><td class="num">${fmtAED(p.amount_fils)}</td></tr>`).join('')}
+      <table><thead><tr><th>Ledger Account / ലെഡ്ജർ അക്കൗണ്ട്</th><th class="num">Amount (AED)</th></tr></thead><tbody>${parts.map((p) => `<tr><td>${esc(t('cat_' + p.category))}</td><td class="num">${fmtAED(p.amount_fils)}</td></tr>`).join('')}
         <tr class="tot"><td>Total / ആകെ</td><td class="num">${fmtAED(x.amount_fils)}</td></tr></tbody></table>
       <p>Method / രീതി: <b>${esc(x.method || '—')}</b>${x.reference ? ` · Ref: ${esc(x.reference)}` : ''}</p>${x.notes ? `<p class="muted">${esc(x.notes)}</p>` : ''}
       <div class="grid" style="margin-top:48px"><div style="border-top:1px solid #999;padding-top:6px">Signature / ഒപ്പ്</div><div style="border-top:1px solid #999;padding-top:6px">${inc ? 'Received by' : 'Approved by'}</div></div>
@@ -2674,13 +2674,13 @@ const I18N_ROWS = [
 ['start_help', 'Numbers already used are never repeated: the next number is the higher of this and the last one used + 1.', 'ഉപയോഗിച്ച നമ്പറുകൾ ആവർത്തിക്കില്ല: ഇതോ അവസാനം ഉപയോഗിച്ചത് + 1 ഓ, ഏതാണോ വലുത് അതാണ് അടുത്ത നമ്പർ.'],
 ['err_prefix', 'Use letters, numbers, - / _ . # and {YYYY} {YY} {MM} only.', 'അക്ഷരങ്ങൾ, അക്കങ്ങൾ, - / _ . # , {YYYY} {YY} {MM} എന്നിവ മാത്രം ഉപയോഗിക്കുക.'],
 ['auto_number', 'Number new records automatically', 'പുതിയ റെക്കോർഡുകൾക്ക് സ്വയം നമ്പർ നൽകുക'], ['preview', 'Next number', 'അടുത്ത നമ്പർ'], ['print_voucher', 'Print voucher', 'വൗച്ചർ പ്രിന്റ്'],
-['f_categories', 'Categories', 'വിഭാഗങ്ങൾ'], ['cat_multi_help', 'Tick one or more. With two or more, split the amount between them below.', 'ഒന്നോ അതിലധികമോ തിരഞ്ഞെടുക്കുക. രണ്ടോ അതിലധികമോ ആണെങ്കിൽ, തുക താഴെ അവയ്ക്കിടയിൽ വിഭജിക്കുക.'],
+['f_categories', 'Ledger Accounts', 'ലെഡ്ജർ അക്കൗണ്ടുകൾ'], ['cat_multi_help', 'Tick one or more. With two or more, split the amount between them below.', 'ഒന്നോ അതിലധികമോ തിരഞ്ഞെടുക്കുക. രണ്ടോ അതിലധികമോ ആണെങ്കിൽ, തുക താഴെ അവയ്ക്കിടയിൽ വിഭജിക്കുക.'],
 ['split_amount', 'Split the amount', 'തുക വിഭജിക്കുക'], ['split_evenly', 'Split evenly', 'തുല്യമായി വിഭജിക്കുക'],
 ['split_status', '{used} of {total} allocated · {rem} left', '{total}-ൽ {used} വിഭജിച്ചു · {rem} ബാക്കി'],
 ['split_help', 'Leave one box empty and it takes whatever is left.', 'ഒരു ബോക്സ് ശൂന്യമായി വിട്ടാൽ ബാക്കിയുള്ള തുക അതിലേക്ക് പോകും.'],
 ['err_split_total', 'The split amounts must add up to {total}.', 'വിഭജിച്ച തുകകൾ ആകെ {total} ആയിരിക്കണം.'],
-['err_split_zero', 'Enter an amount above zero for each category.', 'ഓരോ വിഭാഗത്തിനും പൂജ്യത്തിന് മുകളിലുള്ള തുക നൽകുക.'],
-['filter_categories', 'Categories', 'വിഭാഗങ്ങൾ'], ['all_categories', 'All categories', 'എല്ലാ വിഭാഗങ്ങളും'], ['n_selected', '{n} selected', '{n} തിരഞ്ഞെടുത്തു'],
+['err_split_zero', 'Enter an amount above zero for each ledger account.', 'ഓരോ ലെഡ്ജർ അക്കൗണ്ടിനും പൂജ്യത്തിന് മുകളിലുള്ള തുക നൽകുക.'],
+['filter_categories', 'Ledger Accounts', 'ലെഡ്ജർ അക്കൗണ്ടുകൾ'], ['all_categories', 'All ledger accounts', 'എല്ലാ ലെഡ്ജർ അക്കൗണ്ടുകളും'], ['n_selected', '{n} selected', '{n} തിരഞ്ഞെടുത്തു'],
 ['clear', 'Clear', 'മായ്ക്കുക'], ['net', 'Net', 'അറ്റം'], ['n_transactions', '{n} transactions', '{n} ഇടപാടുകൾ'],
 ['choose', 'Choose…', 'തിരഞ്ഞെടുക്കുക…'], ['banks_national', 'UAE national banks', 'യുഎഇ ദേശീയ ബാങ്കുകൾ'], ['banks_foreign', 'Foreign banks in the UAE', 'യുഎഇയിലെ വിദേശ ബാങ്കുകൾ'],
 ['banks_saved', 'Saved value', 'സേവ് ചെയ്ത മൂല്യം'], ['banks_other_group', 'Not listed', 'പട്ടികയിൽ ഇല്ല'], ['bank_other_opt', 'Other bank…', 'മറ്റ് ബാങ്ക്…'], ['f_bank_other', 'Bank name', 'ബാങ്കിന്റെ പേര്'],
@@ -2743,7 +2743,7 @@ const I18N_ROWS = [
 ['f_admin_fee', 'Admin fee', 'അഡ്മിൻ ഫീസ്'], ['f_deposit', 'Security deposit (refundable)', 'സെക്യൂരിറ്റി ഡെപ്പോസിറ്റ് (തിരികെ ലഭിക്കുന്നത്)'], ['f_schedule', 'Payment schedule', 'പേയ്മെന്റ് ഷെഡ്യൂൾ'], ['f_method', 'Payment method', 'പേയ്മെന്റ് രീതി'],
 ['f_extra_charges', 'Extra charges (itemised)', 'അധിക ചാർജുകൾ (ഇനം തിരിച്ച്)'], ['ph_extra', 'Parking: 1500\nDEWA deposit: 2000', 'പാർക്കിംഗ്: 1500\nDEWA ഡെപ്പോസിറ്റ്: 2000'], ['help_extra', 'One per line: label and amount in AED.', 'ഓരോ വരിയിലും ഒന്ന്: പേരും AED തുകയും.'],
 ['f_amount', 'Amount', 'തുക'], ['f_date', 'Date', 'തീയതി'], ['f_date_time', 'Date & time', 'തീയതിയും സമയവും'], ['f_reference', 'Reference', 'റഫറൻസ്'], ['f_cheque_no', 'Cheque number', 'ചെക്ക് നമ്പർ'],
-['f_bank', 'Bank', 'ബാങ്ക്'], ['f_due', 'Due date', 'അടയ്ക്കേണ്ട തീയതി'], ['f_party', 'Drawer / payee', 'നൽകുന്നയാൾ / സ്വീകർത്താവ്'], ['f_property', 'Property', 'പ്രോപ്പർട്ടി'], ['f_category', 'Category', 'വിഭാഗം'],
+['f_bank', 'Bank', 'ബാങ്ക്'], ['f_due', 'Due date', 'അടയ്ക്കേണ്ട തീയതി'], ['f_party', 'Drawer / payee', 'നൽകുന്നയാൾ / സ്വീകർത്താവ്'], ['f_property', 'Property', 'പ്രോപ്പർട്ടി'], ['f_category', 'Ledger Account', 'ലെഡ്ജർ അക്കൗണ്ട്'],
 ['f_merchant', 'Merchant / vendor', 'വ്യാപാരി / വിതരണക്കാരൻ'], ['f_property_exp', 'Property (for property expenses)', 'പ്രോപ്പർട്ടി (പ്രോപ്പർട്ടി ചെലവുകൾക്ക്)'], ['help_property_exp', 'Leave empty for a personal expense.', 'വ്യക്തിഗത ചെലവിന് ശൂന്യമായി വിടുക.'],
 ['f_member', 'Family member', 'കുടുംബാംഗം'], ['f_bill_name', 'Bill', 'ബിൽ'], ['f_provider', 'Provider', 'സേവനദാതാവ്'], ['f_account_no', 'Account number', 'അക്കൗണ്ട് നമ്പർ'],
 ['f_title', 'Title', 'തലക്കെട്ട്'], ['f_description', 'Description', 'വിവരണം'], ['f_med_name', 'Medicine', 'മരുന്ന്'], ['f_dose', 'Dose', 'ഡോസ്'], ['f_times', 'Times', 'സമയങ്ങൾ'],
