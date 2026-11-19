@@ -189,7 +189,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px}
    Digitz PMS — single-file PWA (vanilla JS, ES module)
    Offline-first: IndexedDB is the source of truth; cloud sync is optional.
    ===================================================================== */
-const APP = { version: '1.0.0', schema: 1, api: './api/' };
+const APP = { version: '1.0.0', schema: 2, api: './api/' };
 const TZ = 'Asia/Dubai';
 
 /* ---------------- DOM + misc helpers ---------------- */
@@ -288,7 +288,7 @@ const isEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
 
 /* ---------------- IndexedDB ---------------- */
 const STORES = ['properties', 'rooms', 'bed_spaces', 'tenants', 'leases', 'payment_schedules', 'pdcs', 'transactions', 'expenses', 'bills',
-  'health_logs', 'medicines', 'appointments', 'food_timetable', 'family_members', 'vault_files', 'attachments', 'sync_queue', 'trash', 'meta'];
+  'health_logs', 'medicines', 'appointments', 'food_timetable', 'family_members', 'ledger_accounts', 'vault_files', 'attachments', 'sync_queue', 'trash', 'meta'];
 const DATA_STORES = STORES.filter((s) => !['sync_queue', 'trash', 'meta', 'attachments', 'vault_files'].includes(s));
 // Whitelist of syncable fields — mirrors api/lib/entities.php. Local-only stores are absent by design.
 const COMMON_SYNC = ['id', 'created_at', 'updated_at', 'deleted_at', 'owner_user_id', 'family_member_id', 'notes'];
@@ -308,6 +308,7 @@ const SYNC_FIELDS = {
   appointments: ['doctor', 'clinic', 'date_time', 'reason', 'remind_minutes'],
   food_timetable: ['day', 'time', 'meal', 'items'],
   family_members: ['name', 'relationship', 'dob', 'mobile'],
+  ledger_accounts: ['code', 'name', 'type', 'active'],
 };
 const LOCAL_ONLY = new Set(['vault_files', 'attachments', 'sync_queue', 'trash', 'meta']);
 
@@ -1211,7 +1212,7 @@ function renderApp() {
     <nav class="bottomnav" aria-label="${esc(t('main_nav'))}">${bottom}</nav></div>`;
   updateSyncDot();
   const v = $('#view'); const route = S.route;
-  Promise.resolve(ROUTES[route].view(S.params)).then((html) => { if (S.route === route && html !== undefined && $('#view') === v) { v.innerHTML = html; afterView(v); } })
+  Promise.resolve(loadLedger()).then(() => ROUTES[route].view(S.params)).then((html) => { if (S.route === route && html !== undefined && $('#view') === v) { v.innerHTML = html; afterView(v); } })
     .catch((e) => { console.error(e); v.innerHTML = `<div class="empty">${esc(t('err_generic'))}<br><span class="tiny">${esc(e.message)}</span></div>`; });
   window.scrollTo(0, 0);
 }
@@ -1330,7 +1331,7 @@ async function viewDashboard() {
   const total = units.length || 1;
   const month = todayYMD().slice(0, 7);
   const tx = txFlat(await list('transactions'));
-  const collected = sum(tx.filter((x) => x.type === 'income' && ['rent', 'fees', 'commission_in', 'other'].includes(x.category) && ymd(x.date).startsWith(month)), (x) => x.amount_fils);
+  const collected = sum(tx.filter((x) => isRevenue(x) && ymd(x.date).startsWith(month)), (x) => x.amount_fils);
   const sched = await list('payment_schedules');
   const outstanding = sum(sched.filter((s) => s.status === 'due' && ymd(s.due_date) <= todayYMD()), (s) => s.amount_fils);
   const pdc7 = (await list('pdcs')).filter((p) => p.status === 'Pending' && daysUntil(p.due_date) <= 7);
@@ -1736,6 +1737,33 @@ Object.assign(ACTIONS, {
   },
 });
 
+/* ---------------- Ledger accounts (Settings → Ledger Accounts) ----------------
+   Built-in accounts keep their fixed codes (transactions store codes, accounting relies on them);
+   a ledger_accounts record with the same code only renames or deactivates them. Custom accounts
+   get a code 'la_xxxxxxxx' and a type the user chooses. */
+const ACCT_TYPES = ['income', 'expense', 'asset', 'liability', 'equity'];
+const SYS_ACCTS = { rent: 'income', fees: 'income', commission_in: 'income', deposit_in: 'liability', deposit_refund: 'liability', landlord_rent: 'expense', other: 'expense',
+  maintenance: 'expense', utilities: 'expense', cleaning: 'expense', furniture: 'expense', govt_fees: 'expense', commission: 'expense', groceries: 'expense', medical: 'expense', education: 'expense', transport: 'expense' };
+const REVENUE_CODES = ['rent', 'fees', 'commission_in', 'other'];
+let LEDGER = [];
+async function loadLedger() {
+  const recs = await list('ledger_accounts'); const by = new Map(recs.map((r) => [r.code, r]));
+  const sys = Object.entries(SYS_ACCTS).map(([code, type]) => { const r = by.get(code); return { code, type, system: true, id: r?.id, name: r?.name || '', active: r ? r.active !== false : true }; });
+  const custom = recs.filter((r) => r.code && !SYS_ACCTS[r.code]).map((r) => ({ code: r.code, type: ACCT_TYPES.includes(r.type) ? r.type : 'expense', system: false, id: r.id, name: r.name || '', active: r.active !== false }));
+  LEDGER = [...sys, ...custom];
+}
+const acctOf = (code) => LEDGER.find((a) => a.code === code);
+function acctName(code) { const a = acctOf(code); return a?.name || (SYS_ACCTS[code] ? t('cat_' + code) : code); }
+/** Type of a custom account (null for built-in ones, whose accounting rules are fixed). */
+const customType = (code) => { const a = acctOf(code); return a && !a.system ? a.type : null; };
+const isRevenue = (x) => x.type === 'income' && (REVENUE_CODES.includes(x.category) || customType(x.category) === 'income');
+const isOtherExpense = (x) => x.type === 'expense' && (x.category === 'other' || customType(x.category) === 'expense');
+/** Options for a picker: built-in codes given + active custom accounts of the given types + anything already selected. */
+function acctOpts(sysCodes, types, keep = []) {
+  const ok = (a) => keep.includes(a.code) || (a.active && (a.system ? sysCodes.includes(a.code) : types.includes(a.type)));
+  return LEDGER.filter(ok).sort((a, b) => (a.system === b.system ? 0 : a.system ? -1 : 1) || (a.system ? sysCodes.indexOf(a.code) - sysCodes.indexOf(b.code) : acctName(a.code).localeCompare(acctName(b.code)))).map((a) => [a.code, acctName(a.code)]);
+}
+
 /* ---------------- Document numbering (Settings → Numbering) ----------------
    Format per series: prefix + separator + zero-padded number, e.g. RCT-0001. The prefix may contain
    {YYYY} {YY} {MM}; the counter then restarts for each new prefix. The next number is always
@@ -1776,7 +1804,7 @@ const docTag = (x) => (x.doc_no ? `<b style="color:var(--text)">${esc(x.doc_no)}
 const TX_CATS = ['rent', 'fees', 'deposit_in', 'deposit_refund', 'commission_in', 'landlord_rent', 'other'];
 const txSelected = () => (S.params.cats || '').split(',').filter(Boolean);
 const txCatsOf = (x) => (Array.isArray(x.categories) && x.categories.length ? x.categories : [x.category]).filter(Boolean);
-const txCatLabel = (x) => txCatsOf(x).map((c) => t('cat_' + c)).join(' + ');
+const txCatLabel = (x) => txCatsOf(x).map((c) => acctName(c)).join(' + ');
 /** Category shares of a transaction: its saved split when valid, otherwise the whole amount under its main category. */
 function txParts(x) {
   const sp = Array.isArray(x.splits) ? x.splits.filter((p) => p && p.category && Number.isFinite(p.amount_fils)) : [];
@@ -1785,19 +1813,19 @@ function txParts(x) {
 }
 /** One row per category share — used by accounting and the dashboard so a split is never counted twice. */
 function txFlat(tx) { return tx.flatMap((x) => txParts(x).map((p) => ({ ...x, category: p.category, amount_fils: p.amount_fils }))); }
-const txSplitText = (x) => { const ps = txParts(x); return ps.length > 1 ? ps.map((p) => `${t('cat_' + p.category)} ${fmtAED(p.amount_fils)}`).join(' + ') : ''; };
+const txSplitText = (x) => { const ps = txParts(x); return ps.length > 1 ? ps.map((p) => `${acctName(p.category)} ${fmtAED(p.amount_fils)}`).join(' + ') : ''; };
 function txFilterRows(all, cats, type) { return all.filter((x) => (!cats.length || txCatsOf(x).some((c) => cats.includes(c))) && (!type || x.type === type)); }
 async function viewTransactions() {
   const all = (await list('transactions')).sort(by('date', -1)); const props = await list('properties');
   const cats = txSelected(); const type = S.params.type || '';
-  const known = [...new Set([...TX_CATS, ...all.flatMap(txCatsOf)])];
+  const known = [...new Set([...acctOpts(TX_CATS, ACCT_TYPES).map(([c]) => c), ...all.flatMap(txCatsOf)])];
   const rows = txFilterRows(all, cats, type);
   const shares = txFlat(rows).filter((x) => !cats.length || cats.includes(x.category));
   const inc = sum(shares.filter((x) => x.type === 'income'), (x) => x.amount_fils); const exp = sum(shares.filter((x) => x.type === 'expense'), (x) => x.amount_fils);
   const count = (c) => all.filter((x) => txCatsOf(x).includes(c) && (!type || x.type === type)).length;
   const filters = `<div class="card" style="margin-bottom:12px"><div class="row between" style="margin-bottom:8px"><b class="small">${esc(t('filter_categories'))}</b>
       <span class="small muted">${cats.length ? esc(t('n_selected', { n: cats.length })) : esc(t('all_categories'))}${cats.length ? ` · <a href="#" data-act="tx-cats-clear">${esc(t('clear'))}</a>` : ''}</span></div>
-    <div class="chips" style="flex-wrap:wrap" role="group" aria-label="${esc(t('filter_categories'))}">${known.map((c) => `<button type="button" class="chip ${cats.includes(c) ? 'on' : ''}" aria-pressed="${cats.includes(c)}" data-act="tx-cat" data-c="${esc(c)}">${cats.includes(c) ? '✓ ' : ''}${esc(t('cat_' + c))} · ${count(c)}</button>`).join('')}</div>
+    <div class="chips" style="flex-wrap:wrap" role="group" aria-label="${esc(t('filter_categories'))}">${known.map((c) => `<button type="button" class="chip ${cats.includes(c) ? 'on' : ''}" aria-pressed="${cats.includes(c)}" data-act="tx-cat" data-c="${esc(c)}">${cats.includes(c) ? '✓ ' : ''}${esc(acctName(c))} · ${count(c)}</button>`).join('')}</div>
     <div class="chips" style="margin-top:10px">${[['', t('all')], ['income', t('income')], ['expense', t('expense')]].map(([v, l]) => `<span class="chip ${type === v ? 'on' : ''}" data-act="tab" data-k="type" data-v="${v}">${esc(l)}</span>`).join('')}</div></div>
     <div class="grid tx-stats" style="margin-bottom:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))"><div class="stat"><div class="l">${esc(t('income'))}</div><div class="v" style="font-size:22px;color:var(--green)">${fmtAED(inc)}</div></div>
       <div class="stat"><div class="l">${esc(t('expense'))}</div><div class="v" style="font-size:22px;color:var(--red)">${fmtAED(exp)}</div></div>
@@ -1806,10 +1834,10 @@ async function viewTransactions() {
     (rows.length ? `<div class="list">${rows.slice(0, 400).map((x) => `<button class="item" data-act="edit-tx" data-id="${x.id}"><div class="grow"><div class="t">${esc(txCatLabel(x))}</div><div class="s">${docTag(x)}${fmtDate(x.date)} · ${esc(props.find((p) => p.id === x.property_id)?.name || '')} · ${esc(t('pm_' + (x.method || 'Cash')))} ${esc(x.reference || '')}</div>${txSplitText(x) ? `<div class="s" style="color:var(--text)">${esc(txSplitText(x))}</div>` : ''}</div>
       <span class="amt" style="color:${x.type === 'income' ? 'var(--green)' : 'var(--red)'}">${x.type === 'income' ? '+' : '−'}${fmtAED(x.amount_fils)}</span></button>`).join('')}</div>` : `<div class="empty">${esc(t('nothing_here'))}</div>`);
 }
-async function txFields() {
+async function txFields(rec) {
   return [{ k: 'type', type: 'select', label: t('f_type'), req: true, opts: [['income', t('income')], ['expense', t('expense')]] },
     { k: 'amount_fils', type: 'money', label: t('f_amount'), req: true, min: 1 }, { k: 'date', type: 'date', label: t('f_date'), req: true },
-    { k: 'categories', type: 'multi', label: t('f_categories'), req: true, full: true, help: t('cat_multi_help'), opts: TX_CATS.map((c) => [c, t('cat_' + c)]), from: (r) => txCatsOf(r) },
+    { k: 'categories', type: 'multi', label: t('f_categories'), req: true, full: true, help: t('cat_multi_help'), opts: acctOpts(TX_CATS, ACCT_TYPES, txCatsOf(rec || {})), from: (r) => txCatsOf(r) },
     { k: 'property_id', type: 'select', label: t('f_property'), opts: await propertyOpts() }, { k: 'method', type: 'select', label: t('f_method'), opts: [['Cash', t('pm_Cash')], ['Cheque', t('pm_Cheque')], ['Transfer', t('pm_Transfer')]], def: 'Cash' },
     { k: 'reference', label: t('f_reference') }, ...(await memberField()), { k: 'notes', type: 'textarea', label: t('f_notes'), full: true }];
 }
@@ -1838,8 +1866,8 @@ function mountTxSplits(el, rec) {
     const cs = ticked(); box.classList.remove('err'); box.style.display = cs.length > 1 ? '' : 'none';
     if (cs.length < 2) { box.innerHTML = ''; return; }
     box.innerHTML = `<label>${esc(t('split_amount'))} <span class="req">*</span></label>
-      <div style="display:grid;gap:8px;margin-top:6px">${cs.map((c) => `<div class="row" style="gap:12px;align-items:center"><span style="flex:1;font-weight:700;font-size:14px">${esc(t('cat_' + c))}</span>
-        <div class="money" style="flex:0 0 190px"><input class="inp" data-split="${esc(c)}" inputmode="decimal" autocomplete="off" value="${esc(vals[c] || '')}" aria-label="${esc(t('cat_' + c))} — ${esc(t('f_amount'))}"></div></div>`).join('')}</div>
+      <div style="display:grid;gap:8px;margin-top:6px">${cs.map((c) => `<div class="row" style="gap:12px;align-items:center"><span style="flex:1;font-weight:700;font-size:14px">${esc(acctName(c))}</span>
+        <div class="money" style="flex:0 0 190px"><input class="inp" data-split="${esc(c)}" inputmode="decimal" autocomplete="off" value="${esc(vals[c] || '')}" aria-label="${esc(acctName(c))} — ${esc(t('f_amount'))}"></div></div>`).join('')}</div>
       <div class="row between" style="margin-top:8px;gap:8px;flex-wrap:wrap"><span class="small" data-split-status></span><button type="button" class="btn sm ghost" data-split-even>${esc(t('split_evenly'))}</button></div>
       <span class="tiny muted">${esc(t('split_help'))}</span><span class="msg"></span>`;
     upd();
@@ -1869,7 +1897,7 @@ function mountTxSplits(el, rec) {
 }
 async function txSheet(rec, extra) {
   let collect = () => ({ splits: [] });
-  return formSheet({ title: rec.id ? (rec.doc_no || t('edit')) : t('add_transaction'), fields: await txFields(), rec, extraHTML: extra || '',
+  return formSheet({ title: rec.id ? (rec.doc_no || t('edit')) : t('add_transaction'), fields: await txFields(rec), rec, extraHTML: extra || '',
     onMount: (el) => { collect = mountTxSplits(el, rec); },
     onSave: async (x) => { const r = collect(); if (r.err) return false; await save('transactions', txNorm({ ...rec, ...x }, r.splits)); refresh(); } });
 }
@@ -1881,7 +1909,7 @@ Object.assign(ACTIONS, {
     const props = await list('properties'); const rows = txFilterRows((await list('transactions')).sort(by('date', -1)), txSelected(), S.params.type || '');
     const cats = txSelected(); const sg = (x, v) => (x.type === 'expense' ? '-' : '') + filsToInput(v);
     const out = [['No.', 'Date', 'Type', 'Ledger Account', 'Amount (AED)', 'Transaction total (AED)', 'Property', 'Method', 'Reference', 'Notes']];
-    for (const x of rows) for (const p of txParts(x)) if (!cats.length || cats.includes(p.category)) out.push([x.doc_no || '', fmtDate(x.date), x.type, t('cat_' + p.category), sg(x, p.amount_fils), sg(x, x.amount_fils), props.find((q) => q.id === x.property_id)?.name || '', x.method || '', x.reference || '', x.notes || '']);
+    for (const x of rows) for (const p of txParts(x)) if (!cats.length || cats.includes(p.category)) out.push([x.doc_no || '', fmtDate(x.date), x.type, acctName(p.category), sg(x, p.amount_fils), sg(x, x.amount_fils), props.find((q) => q.id === x.property_id)?.name || '', x.method || '', x.reference || '', x.notes || '']);
     download(`transactions-${todayYMD()}.csv`, toCSV(out), 'text/csv');
   },
   'new-tx': () => txSheet({ type: 'income', date: ymdToISO(todayYMD()) }),
@@ -1890,9 +1918,9 @@ Object.assign(ACTIONS, {
 });
 
 /* ---------------- Expenses + OCR receipt scanner ---------------- */
-async function expenseFields() {
+async function expenseFields(rec) {
   return [{ k: 'merchant', label: t('f_merchant'), req: true }, { k: 'amount_fils', type: 'money', label: t('f_amount'), req: true, min: 1 }, { k: 'date', type: 'date', label: t('f_date'), req: true },
-    { k: 'category', type: 'select', label: t('f_category'), req: true, opts: EXP_CATS.map((c) => [c, t('cat_' + c)]), def: 'maintenance' },
+    { k: 'category', type: 'select', label: t('f_category'), req: true, opts: acctOpts(EXP_CATS, ['expense'], rec?.category ? [rec.category] : []), def: 'maintenance' },
     { k: 'property_id', type: 'select', label: t('f_property_exp'), opts: await propertyOpts(), help: t('help_property_exp') }, ...(await memberField()),
     { k: 'notes', type: 'textarea', label: t('f_notes'), full: true }];
 }
@@ -1904,13 +1932,13 @@ async function viewExpenses() {
   return pageHead(esc(t('r_expenses')), `<button class="btn primary" data-act="scan-receipt">${icon('camera')} ${esc(t('scan_receipt'))}</button><button class="btn" data-act="new-expense">${icon('plus')} ${esc(t('add'))}</button>`) +
     tabs([['all', t('all')], ['property', t('property_expenses')], ['personal', t('personal_expenses')]], scope, 'scope') +
     `<div class="stat" style="margin-bottom:12px"><div class="l">${esc(t('this_month'))}</div><div class="v">${fmtAED(sum(rows.filter((x) => ymd(x.date).startsWith(month)), (x) => x.amount_fils))}</div></div>` +
-    (rows.length ? `<div class="list">${rows.slice(0, 400).map((x) => `<button class="item" data-act="edit-expense" data-id="${x.id}">${atts.some((a) => a.record_id === x.id) ? icon('receipt') : icon('wallet')}<div class="grow"><div class="t">${esc(x.merchant)}</div><div class="s">${docTag(x)}${fmtDate(x.date)} · ${esc(t('cat_' + x.category))}${x.property_id ? ' · ' + esc(props.find((p) => p.id === x.property_id)?.name || '') : ''}${x.source === 'ocr' ? ' · OCR' : ''}</div></div><span class="amt">${fmtAED(x.amount_fils)}</span></button>`).join('')}</div>` : `<div class="empty">${esc(t('empty_expenses'))}</div>`);
+    (rows.length ? `<div class="list">${rows.slice(0, 400).map((x) => `<button class="item" data-act="edit-expense" data-id="${x.id}">${atts.some((a) => a.record_id === x.id) ? icon('receipt') : icon('wallet')}<div class="grow"><div class="t">${esc(x.merchant)}</div><div class="s">${docTag(x)}${fmtDate(x.date)} · ${esc(acctName(x.category))}${x.property_id ? ' · ' + esc(props.find((p) => p.id === x.property_id)?.name || '') : ''}${x.source === 'ocr' ? ' · OCR' : ''}</div></div><span class="amt">${fmtAED(x.amount_fils)}</span></button>`).join('')}</div>` : `<div class="empty">${esc(t('empty_expenses'))}</div>`);
 }
 Object.assign(ACTIONS, {
   'new-expense': async () => formSheet({ title: t('add_expense'), fields: await expenseFields(), rec: { date: ymdToISO(todayYMD()) }, onSave: async (x) => { await save('expenses', { ...x, source: 'manual' }); refresh(); } }),
   'edit-expense': async (d) => {
     const rec = await getRec('expenses', d.id); const att = (await attachmentsFor(rec.id))[0];
-    await formSheet({ title: rec.doc_no || t('edit'), fields: await expenseFields(), rec,
+    await formSheet({ title: rec.doc_no || t('edit'), fields: await expenseFields(rec), rec,
       extraHTML: `${att ? `<img src="${objURL(att.blob)}" alt="" style="max-width:100%;max-height:260px;border-radius:12px;margin-bottom:10px">` : ''}<button type="button" class="btn danger sm" data-act="del" data-store="expenses" data-id="${rec.id}" data-label="${esc(rec.merchant)}" data-close>${icon('trash')} ${esc(t('delete'))}</button>`,
       onSave: async (x) => { await save('expenses', { ...rec, ...x }); refresh(); } });
   },
@@ -2001,14 +2029,14 @@ async function accountingData(from, to, pid) {
   const tx = txFlat(await list('transactions')); const ex = await list('expenses'); const bills = await list('bills'); const sch = await list('payment_schedules'); const leases = await list('leases');
   const row = (p) => {
     const m = (x) => (p ? x.property_id === p.id : true);
-    const rent = sum(tx.filter((x) => m(x) && x.type === 'income' && ['rent', 'fees', 'commission_in', 'other'].includes(x.category) && inR(x.date)), (x) => x.amount_fils);
+    const rent = sum(tx.filter((x) => m(x) && isRevenue(x) && inR(x.date)), (x) => x.amount_fils);
     const outstanding = sum(sch.filter((s) => m(s) && s.status === 'due' && ymd(s.due_date) <= to), (s) => s.amount_fils);
     const ls = leases.filter((l) => m(l));
     const held = sum(ls.filter((l) => ['Held', 'Partially refunded'].includes(l.deposit_status)), (l) => l.deposit_fils - (l.deposit_refunded_fils || 0));
     const refunded = sum(tx.filter((x) => m(x) && x.category === 'deposit_refund' && inR(x.date)), (x) => x.amount_fils);
     const maint = sum(ex.filter((x) => (p ? x.property_id === p.id : !!x.property_id) && inR(x.date)), (x) => x.amount_fils) + sum(bills.filter((b) => (p ? b.property_id === p.id : !!b.property_id) && b.status === 'paid' && inR(b.paid_on)), (b) => b.amount_fils);
     const landlord = sum(tx.filter((x) => m(x) && x.category === 'landlord_rent' && inR(x.date)), (x) => x.amount_fils);
-    const otherExp = sum(tx.filter((x) => m(x) && x.type === 'expense' && x.category === 'other' && inR(x.date)), (x) => x.amount_fils);
+    const otherExp = sum(tx.filter((x) => m(x) && isOtherExpense(x) && inR(x.date)), (x) => x.amount_fils);
     return { name: p ? p.name : t('overall'), rent, outstanding, held, refunded, maint, landlord, net: rent - maint - landlord - otherExp };
   };
   return { rows: props.map(row), total: pid ? null : row(null) };
@@ -2383,6 +2411,47 @@ Object.assign(ACTIONS, {
 });
 
 /* ---------------- Settings ---------------- */
+async function ledgerUsage() {
+  const use = {}; const add = (c) => { if (c) use[c] = (use[c] || 0) + 1; };
+  for (const x of await list('transactions')) new Set([...txCatsOf(x), ...txParts(x).map((p) => p.category)]).forEach(add);
+  for (const x of await list('expenses')) add(x.category);
+  return use;
+}
+async function viewLedgerSettings() {
+  const use = await ledgerUsage(); const q = S.params.atype || '';
+  const rows = LEDGER.filter((a) => !q || a.type === q);
+  const group = (ty) => { const as = rows.filter((a) => a.type === ty).sort((a, b) => (a.active === b.active ? 0 : a.active ? -1 : 1) || acctName(a.code).localeCompare(acctName(b.code))); if (!as.length) return '';
+    return `<h3 style="margin:18px 0 8px">${esc(t('at_' + ty))} <span class="muted small">· ${as.length}</span></h3><div class="list">${as.map((a) => `<button class="item" data-act="edit-acct" data-c="${esc(a.code)}"><div class="grow"><div class="t">${esc(acctName(a.code))}</div>
+      <div class="s">${esc(t(a.system ? 'acct_builtin' : 'acct_custom'))} · ${esc(t('n_used', { n: use[a.code] || 0 }))}</div></div>${a.active ? badge('active', t('sh_active')) : badge('overdue', t('acct_inactive'))}</button>`).join('')}</div>`; };
+  return `<div class="row between" style="margin:4px 0 6px;gap:10px;flex-wrap:wrap"><div class="chips">${[['', t('all')], ...ACCT_TYPES.map((ty) => [ty, t('at_' + ty)])].map(([v, l]) => `<span class="chip ${q === v ? 'on' : ''}" data-act="tab" data-k="atype" data-v="${v}">${esc(l)}</span>`).join('')}</div>
+    <button class="btn primary" data-act="new-acct">${icon('plus')} ${esc(t('add_ledger_account'))}</button></div><p class="small muted">${esc(t('ledger_note'))}</p>${ACCT_TYPES.map(group).join('')}`;
+}
+function acctFields(a) {
+  return [{ k: 'name', label: t('f_ledger_account'), req: true, max: 60, validate: (v) => (LEDGER.some((o) => o.code !== a?.code && acctName(o.code).toLowerCase() === v.toLowerCase()) ? t('err_acct_dup') : '') },
+    a?.system ? null : { k: 'type', type: 'select', label: t('f_account_type'), req: true, opts: ACCT_TYPES.map((ty) => [ty, t('at_' + ty)]) },
+    { k: 'active', type: 'checkbox', label: t('acct_active_label'), full: true }].filter(Boolean);
+}
+async function acctSheet(code) {
+  await loadLedger(); const a = code ? acctOf(code) : null; const use = a ? (await ledgerUsage())[a.code] || 0 : 0;
+  const extra = a ? `<p class="small muted">${a.system ? esc(t('acct_builtin_note', { type: t('at_' + a.type) })) : ''} ${esc(t('n_used', { n: use }))}</p>${!a.system ? `<button type="button" class="btn danger sm" data-act="del-acct" data-c="${esc(a.code)}" data-close>${icon('trash')} ${esc(t('delete'))}</button>` : ''}` : '';
+  await formSheet({ title: a ? acctName(a.code) : t('add_ledger_account'), fields: acctFields(a), rec: a ? { name: acctName(a.code), type: a.type, active: a.active } : { type: 'income', active: true }, extraHTML: extra,
+    onSave: async (x) => {
+      const prev = a?.id ? await getRec('ledger_accounts', a.id) : null;
+      const name = a?.system && x.name === t('cat_' + a.code) ? '' : x.name; // untouched built-in name stays translatable
+      await save('ledger_accounts', { ...(prev || {}), code: a ? a.code : 'la_' + uuid().replace(/-/g, '').slice(0, 8), name, type: a?.system ? a.type : x.type, active: !!x.active });
+      await loadLedger(); toast(t('saved'), 'ok'); refresh();
+    } });
+}
+Object.assign(ACTIONS, {
+  'new-acct': () => acctSheet(null),
+  'edit-acct': (d) => acctSheet(d.c),
+  'del-acct': async (d) => {
+    const a = acctOf(d.c); if (!a || a.system) return;
+    if ((await ledgerUsage())[a.code]) { toast(t('acct_in_use'), 'err'); return; }
+    if (await softDelete('ledger_accounts', a.id, acctName(a.code))) { await loadLedger(); refresh(); }
+  },
+});
+
 async function numberingCard() {
   const rows = []; let missing = 0;
   for (const s of Object.keys(DOC_SERIES)) {
@@ -2428,7 +2497,7 @@ Object.assign(ACTIONS, {
       <div style="text-align:right"><h1>${inc ? 'Receipt Voucher' : 'Payment Voucher'}</h1><div>${inc ? 'രസീത് വൗച്ചർ' : 'പേയ്മെന്റ് വൗച്ചർ'}</div><div class="big">${esc(x.doc_no || '—')}</div><div class="muted">${fmtDate(x.date)}</div></div></div>
       <div class="grid"><div class="box"><div class="muted">${inc ? 'Received from / ലഭിച്ചത്' : 'Paid to / നൽകിയത്'}</div><b>${esc(ten?.name || prop?.owner_name || '—')}</b></div>
         <div class="box"><div class="muted">Property / പ്രോപ്പർട്ടി</div><b>${esc(prop?.name || '—')}</b></div></div>
-      <table><thead><tr><th>Ledger Account / ലെഡ്ജർ അക്കൗണ്ട്</th><th class="num">Amount (AED)</th></tr></thead><tbody>${parts.map((p) => `<tr><td>${esc(t('cat_' + p.category))}</td><td class="num">${fmtAED(p.amount_fils)}</td></tr>`).join('')}
+      <table><thead><tr><th>Ledger Account / ലെഡ്ജർ അക്കൗണ്ട്</th><th class="num">Amount (AED)</th></tr></thead><tbody>${parts.map((p) => `<tr><td>${esc(acctName(p.category))}</td><td class="num">${fmtAED(p.amount_fils)}</td></tr>`).join('')}
         <tr class="tot"><td>Total / ആകെ</td><td class="num">${fmtAED(x.amount_fils)}</td></tr></tbody></table>
       <p>Method / രീതി: <b>${esc(x.method || '—')}</b>${x.reference ? ` · Ref: ${esc(x.reference)}` : ''}</p>${x.notes ? `<p class="muted">${esc(x.notes)}</p>` : ''}
       <div class="grid" style="margin-top:48px"><div style="border-top:1px solid #999;padding-top:6px">Signature / ഒപ്പ്</div><div style="border-top:1px solid #999;padding-top:6px">${inc ? 'Received by' : 'Approved by'}</div></div>
@@ -2437,11 +2506,14 @@ Object.assign(ACTIONS, {
 });
 
 async function viewSettings() {
+  const stab = S.params.tab || 'general';
+  const menu = tabs([['general', t('general')], ['ledger', t('r_ledger')]], stab);
+  if (stab === 'ledger') return pageHead(esc(t('r_settings'))) + menu + (await viewLedgerSettings());
   const bio = await webauthnAvailable();
   const lastSync = flags.get('lastSync');
   const pending = (await idb.getAll('sync_queue')).length;
   const tog = (id, on, act) => `<label class="toggle"><input type="checkbox" ${on ? 'checked' : ''} data-act="${act}" id="${id}"><span></span></label>`;
-  return pageHead(esc(t('r_settings'))) + `<div class="grid g3">
+  return pageHead(esc(t('r_settings'))) + menu + `<div class="grid g3">
     <div class="card stack"><h3>${esc(t('account'))}</h3><dl class="kv"><dt>${esc(t('f_full_name'))}</dt><dd>${esc(S.user?.name)}</dd><dt>${esc(t('f_mobile'))}</dt><dd>${esc(S.user?.mobile)}</dd><dt>${esc(t('f_email'))}</dt><dd>${esc(S.user?.email || '—')}</dd><dt>${esc(t('agency'))}</dt><dd>${esc(S.agency?.company || '—')}</dd></dl>
       <button class="btn" data-act="change-pin">${esc(t('change_pin'))}</button></div>
     <div class="card stack"><h3>${esc(t('appearance'))}</h3>
@@ -2664,6 +2736,14 @@ Object.assign(ACTIONS, {
    Format: [key, English, Malayalam]
    ===================================================================== */
 const I18N_ROWS = [
+['r_ledger', 'Ledger Accounts', 'ലെഡ്ജർ അക്കൗണ്ടുകൾ'], ['general', 'General', 'പൊതുവായത്'], ['f_ledger_account', 'Ledger Account', 'ലെഡ്ജർ അക്കൗണ്ട്'], ['f_account_type', 'Account Type', 'അക്കൗണ്ട് തരം'],
+['at_income', 'Income', 'വരുമാനം'], ['at_expense', 'Expense', 'ചെലവ്'], ['at_asset', 'Asset', 'ആസ്തി'], ['at_liability', 'Liability', 'ബാധ്യത'], ['at_equity', 'Equity', 'മൂലധനം'],
+['add_ledger_account', 'Add ledger account', 'ലെഡ്ജർ അക്കൗണ്ട് ചേർക്കുക'], ['acct_builtin', 'Built-in', 'ബിൽറ്റ്-ഇൻ'], ['acct_custom', 'Custom', 'കസ്റ്റം'], ['n_used', 'Used {n}×', '{n} തവണ ഉപയോഗിച്ചു'],
+['acct_inactive', 'Inactive', 'നിഷ്ക്രിയം'], ['acct_active_label', 'Active — show in transaction and expense forms', 'സജീവം — ഇടപാട്, ചെലവ് ഫോമുകളിൽ കാണിക്കുക'],
+['ledger_note', 'Ledger accounts appear in the Transaction and Expense forms. Income and Expense accounts count in Accounting; Asset, Liability and Equity accounts do not.', 'ലെഡ്ജർ അക്കൗണ്ടുകൾ ഇടപാട്, ചെലവ് ഫോമുകളിൽ കാണാം. വരുമാന, ചെലവ് അക്കൗണ്ടുകൾ അക്കൗണ്ടിംഗിൽ കണക്കാക്കും; ആസ്തി, ബാധ്യത, മൂലധന അക്കൗണ്ടുകൾ കണക്കാക്കില്ല.'],
+['acct_builtin_note', 'Built-in account ({type}). You can rename or deactivate it; its type is fixed.', 'ബിൽറ്റ്-ഇൻ അക്കൗണ്ട് ({type}). പേര് മാറ്റാനോ നിഷ്ക്രിയമാക്കാനോ കഴിയും; തരം മാറ്റാനാവില്ല.'],
+['acct_in_use', 'This account is used by existing records. Deactivate it instead.', 'ഈ അക്കൗണ്ട് നിലവിലുള്ള റെക്കോർഡുകളിൽ ഉപയോഗിക്കുന്നു. പകരം നിഷ്ക്രിയമാക്കുക.'],
+['err_acct_dup', 'A ledger account with this name already exists.', 'ഈ പേരിൽ ഒരു ലെഡ്ജർ അക്കൗണ്ട് നിലവിലുണ്ട്.'], ['ent_ledger_accounts', 'Ledger accounts', 'ലെഡ്ജർ അക്കൗണ്ടുകൾ'],
 ['numbering', 'Document numbering', 'ഡോക്യുമെന്റ് നമ്പറിംഗ്'],
 ['numbering_note', 'Each new record gets the next number automatically. Set the prefix and number format for each type.', 'ഓരോ പുതിയ റെക്കോർഡിനും അടുത്ത നമ്പർ സ്വയം ലഭിക്കും. ഓരോ തരത്തിനും പ്രിഫിക്സും നമ്പർ ഫോർമാറ്റും സജ്ജമാക്കുക.'],
 ['series_bills', 'Bills', 'ബില്ലുകൾ'], ['series_expenses', 'Expenses', 'ചെലവുകൾ'], ['series_payments', 'Payments (money out)', 'പേയ്മെന്റുകൾ (പുറത്തേക്ക്)'], ['series_receipts', 'Receipts (money in)', 'രസീതുകൾ (അകത്തേക്ക്)'],

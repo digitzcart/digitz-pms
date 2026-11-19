@@ -22,6 +22,7 @@ const SYNC_ENTITIES = [
     'appointments'      => ['doctor', 'clinic', 'date_time', 'reason', 'remind_minutes'],
     'food_timetable'    => ['day', 'time', 'meal', 'items'],
     'family_members'    => ['name', 'relationship', 'dob', 'mobile'],
+    'ledger_accounts'   => ['code', 'name', 'type', 'active'],
 ];
 
 /** Keeps whitelisted fields only; rejects nested objects deeper than simple arrays of scalars/flat objects. */
