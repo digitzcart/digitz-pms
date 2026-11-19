@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1c1a17">
-<meta name="digitz-api" content="./api/">
 <meta name="description" content="Digitz PMS — offline-first property, sub-leasing and rental management for UAE brokers and owners.">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self' blob: data:; frame-src 'self' blob: about:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -190,7 +189,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px}
    Digitz PMS — single-file PWA (vanilla JS, ES module)
    Offline-first: IndexedDB is the source of truth; cloud sync is optional.
    ===================================================================== */
-const APP = { version: '1.0.0', schema: 1, api: (document.querySelector('meta[name="digitz-api"]')?.content || './api/').replace(/\/?$/, '/') };
+const APP = { version: '1.0.0', schema: 1, api: './api/' };
 const TZ = 'Asia/Dubai';
 
 /* ---------------- DOM + misc helpers ---------------- */
@@ -491,7 +490,11 @@ function fieldHTML(f, rec) {
   const common = `id="${id}" name="${f.k}" class="inp" ${f.req ? 'required' : ''} ${f.ph ? `placeholder="${esc(f.ph)}"` : ''}`;
   switch (f.type) {
     case 'textarea': return wrap(`<textarea ${common} rows="3">${esc(v)}</textarea>`);
-    case 'select': return wrap(`<select ${common}>${f.req ? '' : `<option value="">—</option>`}${(f.opts || []).map(([ov, ol]) => `<option value="${esc(ov)}" ${String(v ?? f.def ?? '') === String(ov) ? 'selected' : ''}>${esc(ol)}</option>`).join('')}</select>`);
+    case 'select': {
+      const opt = ([ov, ol]) => `<option value="${esc(ov)}" ${String(v ?? f.def ?? '') === String(ov) ? 'selected' : ''}>${esc(ol)}</option>`;
+      const body = f.groups ? f.groups.map(([gl, os]) => `<optgroup label="${esc(gl)}">${os.map(opt).join('')}</optgroup>`).join('') : (f.opts || []).map(opt).join('');
+      return wrap(`<select ${common}>${f.req ? `<option value="" disabled ${v ?? f.def ? '' : 'selected'}>${esc(t('choose'))}</option>` : `<option value="">—</option>`}${body}</select>`);
+    }
     case 'money': return wrap(`<div class="money"><input ${common} inputmode="decimal" value="${esc(filsToInput(v ?? f.def))}" autocomplete="off"></div>`);
     case 'date': return wrap(`<input ${common} type="date" value="${esc(v ? ymd(v) : (f.def || ''))}">`);
     case 'datetime': return wrap(`<input ${common} type="datetime-local" value="${esc(v ? `${ymd(v)}T${hm(v)}` : '')}">`);
@@ -1665,8 +1668,23 @@ async function viewPdcs() {
     (rows.length ? groups.map(([g, fn]) => { const rs = rows.filter((p) => fn(daysUntil(p.due_date))); return rs.length ? `${g !== 'all' ? `<h3 style="margin:16px 0 8px" class="${g === 'overdue' || g === 'today' ? '' : 'muted'}">${esc(t('grp_' + g))} · ${fmtAED(sum(rs, (p) => p.amount_fils))}</h3>` : ''}<div class="list">${rs.map(item).join('')}</div>` : ''; }).join('')
       : `<div class="empty">${esc(t('empty_pdcs'))}</div>`);
 }
-async function pdcFields() {
-  return [{ k: 'cheque_no', label: t('f_cheque_no'), req: true }, { k: 'bank', label: t('f_bank'), req: true }, { k: 'amount_fils', type: 'money', label: t('f_amount'), req: true, min: 1 },
+/* UAE banks licensed by the Central Bank of the UAE (CB Register, Oct 2026) */
+const UAE_BANKS_NATIONAL = ["Abu Dhabi Commercial Bank (ADCB)", "Abu Dhabi Islamic Bank (ADIB)", "Ajman Bank", "Al Hilal Bank", "Al Maryah Community Bank (Mbank)", "Al Masraf (Arab Bank for Investment & Foreign Trade)", "Bank of Sharjah", "Commercial Bank International (CBI)", "Commercial Bank of Dubai (CBD)", "Dubai Islamic Bank (DIB)", "Emirates Investment Bank", "Emirates Islamic", "Emirates NBD", "First Abu Dhabi Bank (FAB)", "InvestBank", "Mashreq", "National Bank of Fujairah (NBF)", "National Bank of Umm Al Qaiwain (NBQ)", "RAKBANK (National Bank of Ras Al Khaimah)", "Reem Community Bank", "Ruya Community Islamic Bank", "Sharjah Islamic Bank", "United Arab Bank (UAB)", "Wio Bank", "Zand Bank"];
+const UAE_BANKS_FOREIGN = ["Agricultural Bank of China", "Al Ahli Bank of Kuwait", "Al Khaliji (France)", "Arab African International Bank", "Arab Bank", "Bank Al Falah", "Bank Melli Iran", "Bank of Baroda", "Bank of China", "Bank Saderat Iran", "Banque Banorient France", "Banque Misr", "Barclays Bank", "BNP Paribas", "BOK International Bank", "Citibank", "Credit Agricole CIB", "Deutsche Bank", "Doha Bank", "El Nilein Bank", "Gulf International Bank", "Habib Bank AG Zurich", "Habib Bank Limited (HBL)", "HSBC Bank Middle East", "Industrial & Commercial Bank of China (ICBC)", "Intesa Sanpaolo", "International Development Bank for Investment & Finance", "Iraqi Islamic Bank for Investment & Development", "Janata Bank", "KEB Hana Bank", "MCB Bank", "National Bank of Bahrain", "National Bank of Kuwait (NBK)", "National Bank of Oman", "Rafidain Bank", "Standard Chartered", "The Saudi National Bank", "United Bank Limited (UBL)"];
+function bankGroups(current) {
+  const groups = [[t('banks_national'), UAE_BANKS_NATIONAL.map((b) => [b, b])], [t('banks_foreign'), UAE_BANKS_FOREIGN.map((b) => [b, b])]];
+  if (current && ![...UAE_BANKS_NATIONAL, ...UAE_BANKS_FOREIGN].includes(current)) groups.unshift([t('banks_saved'), [[current, current]]]);
+  groups.push([t('banks_other_group'), [['__other', t('bank_other_opt')]]]);
+  return groups;
+}
+function bankFieldMount(el) { // show the free-text bank box only when "Other" is chosen
+  const sel = el.querySelector('[name=bank]'); const box = el.querySelector('[data-field=bank_other]');
+  if (!sel || !box) return; const sync = () => { box.style.display = sel.value === '__other' ? '' : 'none'; }; sel.addEventListener('change', sync); sync();
+}
+function bankValue(x) { if (x.bank === '__other') x.bank = (x.bank_other || '').trim(); delete x.bank_other; return x; }
+async function pdcFields(rec = {}) {
+  return [{ k: 'cheque_no', label: t('f_cheque_no'), req: true }, { k: 'bank', type: 'select', label: t('f_bank'), req: true, groups: bankGroups(rec.bank) },
+    { k: 'bank_other', label: t('f_bank_other'), validate: (v, d) => (d.bank === '__other' && !v ? t('err_required') : '') }, { k: 'amount_fils', type: 'money', label: t('f_amount'), req: true, min: 1 },
     { k: 'due_date', type: 'date', label: t('f_due'), req: true }, { k: 'party', label: t('f_party') }, { k: 'property_id', type: 'select', label: t('f_property'), opts: await propertyOpts() },
     { k: 'status', type: 'select', label: t('f_status'), req: true, opts: PDC_STATUSES.map((s) => [s, t('st_' + s)]), def: 'Pending' }, { k: 'notes', type: 'textarea', label: t('f_notes'), full: true }];
 }
@@ -1684,19 +1702,19 @@ async function applyPdcStatus(before, after) {
   if (after.status === 'Bounced') toast(t('bounced_hint'), 'err');
 }
 Object.assign(ACTIONS, {
-  'new-pdc': async (d) => formSheet({ title: t('add_cheque') + ' · ' + t(d.dir === 'payable' ? 'dir_payable' : 'dir_receivable'), fields: await pdcFields(), rec: { status: 'Pending' },
-    onSave: async (x) => { const p = await save('pdcs', { ...x, direction: d.dir }); await applyPdcStatus({ status: 'Pending' }, p); refresh(); } }),
+  'new-pdc': async (d) => formSheet({ title: t('add_cheque') + ' · ' + t(d.dir === 'payable' ? 'dir_payable' : 'dir_receivable'), fields: await pdcFields(), rec: { status: 'Pending' }, onMount: bankFieldMount,
+    onSave: async (x) => { const p = await save('pdcs', { ...bankValue(x), direction: d.dir }); await applyPdcStatus({ status: 'Pending' }, p); refresh(); } }),
   'edit-pdc': async (d) => {
     const rec = await getRec('pdcs', d.id);
-    await formSheet({ title: `${t('cheque')} #${rec.cheque_no || ''}`, fields: await pdcFields(), rec,
+    await formSheet({ title: `${t('cheque')} #${rec.cheque_no || ''}`, fields: await pdcFields(rec), rec, onMount: bankFieldMount,
       extraHTML: `<div class="row">${rec.status === 'Bounced' || rec.status === 'Pending' ? `<button type="button" class="btn sm" data-act="replace-pdc" data-id="${rec.id}" data-close>${esc(t('replace_cheque'))}</button>` : ''}<button type="button" class="btn danger sm" data-act="del" data-store="pdcs" data-id="${rec.id}" data-label="#${esc(rec.cheque_no)}" data-close>${icon('trash')} ${esc(t('delete'))}</button></div>`,
-      onSave: async (x) => { const after = await save('pdcs', { ...rec, ...x }); await applyPdcStatus(rec, after); refresh(); } });
+      onSave: async (x) => { const after = await save('pdcs', { ...rec, ...bankValue(x) }); await applyPdcStatus(rec, after); refresh(); } });
   },
   'replace-pdc': async (d) => {
     const old = await getRec('pdcs', d.id);
-    await formSheet({ title: t('replace_cheque'), fields: await pdcFields(), rec: { ...old, cheque_no: '', status: 'Pending', id: undefined },
+    await formSheet({ title: t('replace_cheque'), fields: await pdcFields(old), rec: { ...old, cheque_no: '', status: 'Pending', id: undefined }, onMount: bankFieldMount,
       onSave: async (x) => {
-        const n = await save('pdcs', { ...x, direction: old.direction, lease_id: old.lease_id, schedule_id: old.schedule_id });
+        const n = await save('pdcs', { ...bankValue(x), direction: old.direction, lease_id: old.lease_id, schedule_id: old.schedule_id });
         await save('pdcs', { ...old, status: 'Replaced', replaced_by: n.id });
         if (old.schedule_id) { const s = await getRec('payment_schedules', old.schedule_id); if (s) await save('payment_schedules', { ...s, pdc_id: n.id }); }
         refresh();
@@ -2451,6 +2469,8 @@ Object.assign(ACTIONS, {
    Format: [key, English, Malayalam]
    ===================================================================== */
 const I18N_ROWS = [
+['choose', 'Choose…', 'തിരഞ്ഞെടുക്കുക…'], ['banks_national', 'UAE national banks', 'യുഎഇ ദേശീയ ബാങ്കുകൾ'], ['banks_foreign', 'Foreign banks in the UAE', 'യുഎഇയിലെ വിദേശ ബാങ്കുകൾ'],
+['banks_saved', 'Saved value', 'സേവ് ചെയ്ത മൂല്യം'], ['banks_other_group', 'Not listed', 'പട്ടികയിൽ ഇല്ല'], ['bank_other_opt', 'Other bank…', 'മറ്റ് ബാങ്ക്…'], ['f_bank_other', 'Bank name', 'ബാങ്കിന്റെ പേര്'],
 // --- general ---
 ['ok', 'OK', 'ശരി'], ['cancel', 'Cancel', 'റദ്ദാക്കുക'], ['save', 'Save', 'സേവ് ചെയ്യുക'], ['saved', 'Saved', 'സേവ് ചെയ്തു'], ['close', 'Close', 'അടയ്ക്കുക'],
 ['edit', 'Edit', 'തിരുത്തുക'], ['delete', 'Delete', 'ഇല്ലാതാക്കുക'], ['add', 'Add', 'ചേർക്കുക'], ['back', 'Back', 'തിരികെ'], ['all', 'All', 'എല്ലാം'],
