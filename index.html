@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1c1a17">
+<meta name="digitz-api" content="./api/">
 <meta name="description" content="Digitz PMS — offline-first property, sub-leasing and rental management for UAE brokers and owners.">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self' blob: data:; frame-src 'self' blob: about:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -189,7 +190,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px}
    Digitz PMS — single-file PWA (vanilla JS, ES module)
    Offline-first: IndexedDB is the source of truth; cloud sync is optional.
    ===================================================================== */
-const APP = { version: '1.0.0', schema: 1, api: './api/' };
+const APP = { version: '1.0.0', schema: 1, api: (document.querySelector('meta[name="digitz-api"]')?.content || './api/').replace(/\/?$/, '/') };
 const TZ = 'Asia/Dubai';
 
 /* ---------------- DOM + misc helpers ---------------- */

@@ -44,6 +44,7 @@ if (!is_file("$root/config.php")) {
         "'phone_number_id' => ''" => "'phone_number_id' => " . var_export($e('WA_PHONE_ID'), true),
         "'access_token'    => ''" => "'access_token'    => " . var_export($e('WA_TOKEN'), true),
         "'mailto:admin@example.ae'" => var_export('mailto:' . $e('MAIL_ADMIN', 'admin@example.ae'), true),
+        "'allowed_origins' => []," => "'allowed_origins' => " . var_export(array_values(array_filter(array_map('trim', explode(',', $e('FRONTEND_ORIGINS', ''))))), true) . ",",
         "'Digitz PMS <no-reply@example.ae>'" => var_export($e('MAIL_FROM', 'Digitz PMS <no-reply@example.ae>'), true),
     ]);
     file_put_contents("$root/config.php", $cfg); chmod("$root/config.php", 0640);

@@ -9,6 +9,7 @@
 #   EMAIL      (required) for the free Let's Encrypt HTTPS certificate
 #   ENV_NAME   test | production            (default: test)
 #   OTP_DEV    1 = show sign-up codes on screen (test only)  (default: 1 on test, 0 on production)
+#   FRONTEND_ORIGINS  comma-separated sites allowed to call the API, e.g. https://digitz-test.netlify.app
 #   COMPANY, CA_COMPANY, CA_USERNAME, CA_PASSWORD, CA_MAX, WA_PHONE_ID, WA_TOKEN, MAIL_FROM  (optional)
 set -euo pipefail
 
@@ -70,6 +71,7 @@ CA_COMPANY=${CA_COMPANY:-Default Agency}
 CA_USERNAME=${CA_USERNAME:-AGENCY1}
 CA_PASSWORD=$CA_PASSWORD
 CA_MAX=${CA_MAX:-100}
+FRONTEND_ORIGINS=${FRONTEND_ORIGINS:-}
 ENV
   chown $DEPLOY_USER:$DEPLOY_USER /etc/digitz/install.env; chmod 600 /etc/digitz/install.env
 fi

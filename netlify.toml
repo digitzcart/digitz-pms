@@ -1,0 +1,11 @@
+# Netlify hosts the front-end only. The PHP API + MySQL run on your server.
+# In Netlify > Site configuration > Environment variables set:
+#   API_URL = https://api.yourdomain.ae/api      (where api/*.php is served)
+[build]
+  command = "bash deploy/netlify-build.sh"
+  publish = "dist"
+
+[[headers]]
+  for = "/vendor/*.wasm.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

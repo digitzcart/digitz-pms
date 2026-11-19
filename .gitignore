@@ -8,3 +8,4 @@ install.lock
 Thumbs.db
 .vscode/
 .idea/
+dist/

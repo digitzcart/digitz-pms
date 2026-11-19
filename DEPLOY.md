@@ -76,3 +76,15 @@
 - Email: install a mail relay (e.g. Postfix with an SMTP provider) so cheque reminder emails are delivered.
 - Back up the database daily to somewhere off the server.
 - Change the default agency password that the setup script printed.
+
+## Optional: front-end on Netlify
+
+Netlify can host the app screens (HTML, service worker, OCR files) for free. The PHP API and MySQL still run on your server.
+
+1. In Netlify, choose **Add new project → Import an existing project → GitHub**, then pick `digitzcart/digitz-pms`. Use the `develop` branch for the test site and `main` for production. The build settings come from `netlify.toml`.
+2. Under **Site configuration → Environment variables**, add:
+   - `API_URL`: where `api/*.php` is served, for example `https://test.yourdomain.ae/api`.
+   - `NETLIFY_ENV`: `test` or `production`. Production sites are left indexable by search engines; test sites are not.
+3. On the server, allow the Netlify address to call the API by setting `FRONTEND_ORIGINS` when you run the setup script, for example `FRONTEND_ORIGINS=https://digitz-test.netlify.app`. If the server is already installed, add the address to `'allowed_origins'` in `config.php` instead.
+
+Without `API_URL`, the Netlify site still opens and works offline, but sign-up, sync and the staff console need the API.
