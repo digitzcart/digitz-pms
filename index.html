@@ -1152,6 +1152,7 @@ const ROUTES = {
   lease: { view: (p) => viewLease(p.id) },
   payments: { icon: 'wallet', view: () => viewPayments() },
   pdcs: { icon: 'cheque', view: () => viewPdcs() },
+  record: { icon: 'plus', view: (p) => viewRecord(p) },
   transactions: { icon: 'receipt', view: () => viewTransactions() },
   expenses: { icon: 'receipt', view: () => viewExpenses() },
   bills: { icon: 'bolt', view: () => viewBills() },
@@ -1169,7 +1170,7 @@ const ROUTES = {
 };
 const NAV = [
   ['nav_property', ['dashboard', 'properties', 'tenants', 'leases']],
-  ['nav_money', ['payments', 'pdcs', 'transactions', 'expenses', 'bills', 'accounting']],
+  ['nav_money', ['payments', 'pdcs', 'record', 'transactions', 'expenses', 'bills', 'accounting']],
   ['nav_network', ['sharing']],
   ['nav_personal', ['health', 'family', 'vault']],
   ['nav_app', ['trash', 'backup', 'subscription', 'settings']],
@@ -1193,7 +1194,7 @@ function render() {
 }
 function navLink(r, cls = '') {
   const n = r === 'pdcs' && badgeCount ? `<span class="navbadge">${badgeCount}</span>` : '';
-  return `<a href="#/${r}" class="${cls} ${S.route === r || (S.route === 'property' && r === 'properties') || (S.route === 'lease' && r === 'leases') || (S.route === 'member' && r === 'family') ? 'on' : ''}">${icon(ROUTES[r].icon)}<span>${esc(t('r_' + r))}</span>${n}</a>`;
+  return `<a href="#/${r}" class="${cls} ${(S.route === r && !(r === 'record' && S.params.id)) || (S.route === 'record' && S.params.id && r === 'transactions') || (S.route === 'property' && r === 'properties') || (S.route === 'lease' && r === 'leases') || (S.route === 'member' && r === 'family') ? 'on' : ''}">${icon(ROUTES[r].icon)}<span>${esc(t('r_' + r))}</span>${n}</a>`;
 }
 function renderApp() {
   const { name, params } = parseHash();
@@ -1830,7 +1831,7 @@ async function viewTransactions() {
     <div class="grid tx-stats" style="margin-bottom:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))"><div class="stat"><div class="l">${esc(t('income'))}</div><div class="v" style="font-size:22px;color:var(--green)">${fmtAED(inc)}</div></div>
       <div class="stat"><div class="l">${esc(t('expense'))}</div><div class="v" style="font-size:22px;color:var(--red)">${fmtAED(exp)}</div></div>
       <div class="stat accent"><div class="l">${esc(t('net'))} · ${esc(t('n_transactions', { n: rows.length }))}</div><div class="v" style="font-size:22px">${fmtAED(inc - exp)}</div></div></div>`;
-  return pageHead(esc(t('r_transactions')), `<button class="btn primary" data-act="new-tx">${icon('plus')} ${esc(t('add'))}</button><button class="btn" data-act="tx-csv">${icon('download')} CSV</button>`) + filters +
+  return pageHead(esc(t('r_transactions')), `<a class="btn primary" href="#/record">${icon('plus')} ${esc(t('r_record'))}</a><button class="btn" data-act="tx-csv">${icon('download')} CSV</button>`) + filters +
     (rows.length ? `<div class="list">${rows.slice(0, 400).map((x) => `<button class="item" data-act="edit-tx" data-id="${x.id}"><div class="grow"><div class="t">${esc(txCatLabel(x))}</div><div class="s">${docTag(x)}${fmtDate(x.date)} · ${esc(props.find((p) => p.id === x.property_id)?.name || '')} · ${esc(t('pm_' + (x.method || 'Cash')))} ${esc(x.reference || '')}</div>${txSplitText(x) ? `<div class="s" style="color:var(--text)">${esc(txSplitText(x))}</div>` : ''}</div>
       <span class="amt" style="color:${x.type === 'income' ? 'var(--green)' : x.type === 'transfer' ? 'var(--text)' : 'var(--red)'}">${x.type === 'income' ? '+' : x.type === 'transfer' ? '⇄ ' : '−'}${fmtAED(x.amount_fils)}</span></button>`).join('')}</div>` : `<div class="empty">${esc(t('nothing_here'))}</div>`);
 }
@@ -1928,11 +1929,26 @@ async function txFields() {
     { k: 'method', type: 'select', label: t('f_method'), opts: [['Cash', t('pm_Cash')], ['Cheque', t('pm_Cheque')], ['Transfer', t('pm_Transfer')]], def: 'Cash' },
     { k: 'property_id', type: 'select', label: t('f_property'), opts: await propertyOpts() }, { k: 'reference', label: t('f_reference') }, ...(await memberField()), { k: 'notes', type: 'textarea', label: t('f_notes'), full: true }];
 }
-async function txSheet(rec, extra) {
-  let collect = () => ({ err: 'not ready' });
-  return formSheet({ title: rec.id ? (rec.doc_no || t('edit')) : t('add_transaction'), fields: await txFields(), rec, extraHTML: extra || '',
-    onMount: (el) => { const sh = el.closest?.('.sheet') || el.querySelector('.sheet'); if (sh) sh.style.maxWidth = '820px'; collect = mountTxLines(el, rec); },
-    onSave: async (x) => { const r = collect(); if (r.err) return false; await save('transactions', { ...rec, ...x, ...r }); refresh(); } });
+/** Record Income page (Money → Record Income): the From / To form as a full page. #/record = new, #/record/<id> = edit. */
+async function viewRecord(p) {
+  const rec = p.id ? await getRec('transactions', p.id) : { type: 'income', date: ymdToISO(todayYMD()) };
+  if (p.id && (!rec || rec.deleted_at)) { setTimeout(() => go('#/transactions')); return ''; }
+  const fields = await txFields();
+  afterHooks.push((root) => {
+    const form = root.querySelector('#txform'); if (!form) return;
+    const collect = mountTxLines(root, rec);
+    form.onsubmit = async (e) => {
+      e.preventDefault(); const x = readForm(form, fields); if (!x) return; const r = collect(); if (r.err) return;
+      const btn = form.querySelector('[type=submit]'); btn.disabled = true;
+      try { const out = await save('transactions', { ...rec, ...x, ...r }); toast(`${t('saved')}${out.doc_no ? ' · ' + out.doc_no : ''}`, 'ok'); go('#/transactions'); }
+      catch (err) { console.error(err); toast(err.message || t('err_generic'), 'err'); } finally { btn.disabled = false; }
+    };
+  });
+  const tools = rec.id ? `<button type="button" class="btn sm" data-act="print-tx" data-id="${rec.id}">${icon('print')} ${esc(t('print_voucher'))}</button>
+    <button type="button" class="btn danger sm" data-act="del" data-store="transactions" data-id="${rec.id}" data-label="${esc(rec.doc_no || fmtAED(rec.amount_fils))}" data-back="#/transactions">${icon('trash')} ${esc(t('delete'))}</button>` : '';
+  return backLink('#/transactions', t('r_transactions')) + pageHead(esc(rec.id ? rec.doc_no || t('edit') : t('r_record')), tools, rec.id ? esc(t('r_record')) : '') +
+    `<div class="card" style="max-width:880px"><form id="txform" novalidate>${formHTML(fields, rec)}
+      <div class="actions" style="justify-content:flex-end;margin-top:14px"><a class="btn ghost" href="#/transactions">${esc(t('cancel'))}</a><button class="btn primary" type="submit">${esc(t('save'))}</button></div></form></div>`;
 }
 function setTxCats(cats) { const p = new URLSearchParams(location.hash.split('?')[1] || ''); if (cats.length) p.set('cats', cats.join(',')); else p.delete('cats'); go('#/transactions' + (p.toString() ? '?' + p : '')); }
 Object.assign(ACTIONS, {
@@ -1945,9 +1961,8 @@ Object.assign(ACTIONS, {
     for (const x of rows) for (const p of txParts(x)) if (!cats.length || cats.includes(p.category)) out.push([x.doc_no || '', fmtDate(x.date), x.type, acctName(p.category), sg(x, p.amount_fils), sg(x, x.amount_fils), props.find((q) => q.id === x.property_id)?.name || '', x.method || '', x.reference || '', x.notes || '']);
     download(`transactions-${todayYMD()}.csv`, toCSV(out), 'text/csv');
   },
-  'new-tx': () => txSheet({ type: 'income', date: ymdToISO(todayYMD()) }),
-  'edit-tx': async (d) => { const rec = await getRec('transactions', d.id);
-    await txSheet(rec, `<button type="button" class="btn sm" data-act="print-tx" data-id="${rec.id}">${icon('print')} ${esc(t('print_voucher'))}</button> <button type="button" class="btn danger sm" data-act="del" data-store="transactions" data-id="${rec.id}" data-label="${esc(fmtAED(rec.amount_fils))}" data-close>${icon('trash')} ${esc(t('delete'))}</button>`); },
+  'new-tx': () => go('#/record'),
+  'edit-tx': (d) => go('#/record/' + d.id),
 });
 
 /* ---------------- Expenses + OCR receipt scanner ---------------- */
@@ -2912,7 +2927,7 @@ const I18N_ROWS = [
 ['due_30', 'Due ≤ 30 days', '30 ദിവസത്തിനുള്ളിൽ'], ['cheque', 'Cheque', 'ചെക്ക്'], ['add_cheque', 'Add cheque', 'ചെക്ക് ചേർക്കുക'], ['dir_receivable', 'Receivable', 'ലഭിക്കേണ്ടത്'], ['dir_payable', 'Payable', 'നൽകേണ്ടത്'],
 ['bank_unset', 'Bank not set', 'ബാങ്ക് നൽകിയിട്ടില്ല'], ['empty_pdcs', 'No cheques in this view.', 'ഈ കാഴ്ചയിൽ ചെക്കുകളില്ല.'], ['replace_cheque', 'Replace cheque', 'ചെക്ക് മാറ്റിസ്ഥാപിക്കുക'],
 ['bounced_hint', 'Cheque bounced. Contact the drawer and record a replacement.', 'ചെക്ക് മടങ്ങി. നൽകിയയാളെ ബന്ധപ്പെട്ട് പകരം ചെക്ക് രേഖപ്പെടുത്തുക.'],
-['add_transaction', 'Add transaction', 'ഇടപാട് ചേർക്കുക'],
+['add_transaction', 'Record Income', 'വരുമാനം രേഖപ്പെടുത്തുക'], ['r_record', 'Record Income', 'വരുമാനം രേഖപ്പെടുത്തുക'],
 // --- expenses / OCR ---
 ['add_expense', 'Add expense', 'ചെലവ് ചേർക്കുക'], ['empty_expenses', 'No expenses yet. Scan a bill to start.', 'ഇതുവരെ ചെലവുകളില്ല. തുടങ്ങാൻ ഒരു ബിൽ സ്കാൻ ചെയ്യുക.'],
 ['property_expenses', 'Property', 'പ്രോപ്പർട്ടി'], ['personal_expenses', 'Personal', 'വ്യക്തിഗതം'], ['this_month', 'This month', 'ഈ മാസം'],
