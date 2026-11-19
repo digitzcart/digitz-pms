@@ -1729,9 +1729,24 @@ Object.assign(ACTIONS, {
 });
 
 /* ---------------- Transactions ---------------- */
+const TX_CATS = ['rent', 'fees', 'deposit_in', 'deposit_refund', 'commission_in', 'landlord_rent', 'other'];
+const txSelected = () => (S.params.cats || '').split(',').filter(Boolean);
+function txFilterRows(all, cats, type) { return all.filter((x) => (!cats.length || cats.includes(x.category)) && (!type || x.type === type)); }
 async function viewTransactions() {
-  const rows = (await list('transactions')).sort(by('date', -1)); const props = await list('properties');
-  return pageHead(esc(t('r_transactions')), `<button class="btn primary" data-act="new-tx">${icon('plus')} ${esc(t('add'))}</button>`) +
+  const all = (await list('transactions')).sort(by('date', -1)); const props = await list('properties');
+  const cats = txSelected(); const type = S.params.type || '';
+  const known = [...new Set([...TX_CATS, ...all.map((x) => x.category).filter(Boolean)])];
+  const rows = txFilterRows(all, cats, type);
+  const inc = sum(rows.filter((x) => x.type === 'income'), (x) => x.amount_fils); const exp = sum(rows.filter((x) => x.type === 'expense'), (x) => x.amount_fils);
+  const count = (c) => all.filter((x) => x.category === c && (!type || x.type === type)).length;
+  const filters = `<div class="card" style="margin-bottom:12px"><div class="row between" style="margin-bottom:8px"><b class="small">${esc(t('filter_categories'))}</b>
+      <span class="small muted">${cats.length ? esc(t('n_selected', { n: cats.length })) : esc(t('all_categories'))}${cats.length ? ` · <a href="#" data-act="tx-cats-clear">${esc(t('clear'))}</a>` : ''}</span></div>
+    <div class="chips" style="flex-wrap:wrap" role="group" aria-label="${esc(t('filter_categories'))}">${known.map((c) => `<button type="button" class="chip ${cats.includes(c) ? 'on' : ''}" aria-pressed="${cats.includes(c)}" data-act="tx-cat" data-c="${esc(c)}">${cats.includes(c) ? '✓ ' : ''}${esc(t('cat_' + c))} · ${count(c)}</button>`).join('')}</div>
+    <div class="chips" style="margin-top:10px">${[['', t('all')], ['income', t('income')], ['expense', t('expense')]].map(([v, l]) => `<span class="chip ${type === v ? 'on' : ''}" data-act="tab" data-k="type" data-v="${v}">${esc(l)}</span>`).join('')}</div></div>
+    <div class="grid tx-stats" style="margin-bottom:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))"><div class="stat"><div class="l">${esc(t('income'))}</div><div class="v" style="font-size:22px;color:var(--green)">${fmtAED(inc)}</div></div>
+      <div class="stat"><div class="l">${esc(t('expense'))}</div><div class="v" style="font-size:22px;color:var(--red)">${fmtAED(exp)}</div></div>
+      <div class="stat accent"><div class="l">${esc(t('net'))} · ${esc(t('n_transactions', { n: rows.length }))}</div><div class="v" style="font-size:22px">${fmtAED(inc - exp)}</div></div></div>`;
+  return pageHead(esc(t('r_transactions')), `<button class="btn primary" data-act="new-tx">${icon('plus')} ${esc(t('add'))}</button><button class="btn" data-act="tx-csv">${icon('download')} CSV</button>`) + filters +
     (rows.length ? `<div class="list">${rows.slice(0, 400).map((x) => `<button class="item" data-act="edit-tx" data-id="${x.id}"><div class="grow"><div class="t">${esc(t('cat_' + x.category))}</div><div class="s">${fmtDate(x.date)} · ${esc(props.find((p) => p.id === x.property_id)?.name || '')} · ${esc(t('pm_' + (x.method || 'Cash')))} ${esc(x.reference || '')}</div></div>
       <span class="amt" style="color:${x.type === 'income' ? 'var(--green)' : 'var(--red)'}">${x.type === 'income' ? '+' : '−'}${fmtAED(x.amount_fils)}</span></button>`).join('')}</div>` : `<div class="empty">${esc(t('nothing_here'))}</div>`);
 }
@@ -1742,7 +1757,16 @@ async function txFields() {
     { k: 'property_id', type: 'select', label: t('f_property'), opts: await propertyOpts() }, { k: 'method', type: 'select', label: t('f_method'), opts: [['Cash', t('pm_Cash')], ['Cheque', t('pm_Cheque')], ['Transfer', t('pm_Transfer')]], def: 'Cash' },
     { k: 'reference', label: t('f_reference') }, ...(await memberField()), { k: 'notes', type: 'textarea', label: t('f_notes'), full: true }];
 }
+function setTxCats(cats) { const p = new URLSearchParams(location.hash.split('?')[1] || ''); if (cats.length) p.set('cats', cats.join(',')); else p.delete('cats'); go('#/transactions' + (p.toString() ? '?' + p : '')); }
 Object.assign(ACTIONS, {
+  'tx-cat': (d) => { const cur = txSelected(); setTxCats(cur.includes(d.c) ? cur.filter((c) => c !== d.c) : [...cur, d.c]); },
+  'tx-cats-clear': () => setTxCats([]),
+  'tx-csv': async () => {
+    const props = await list('properties'); const rows = txFilterRows((await list('transactions')).sort(by('date', -1)), txSelected(), S.params.type || '');
+    const out = [['Date', 'Type', 'Category', 'Amount (AED)', 'Property', 'Method', 'Reference', 'Notes']];
+    for (const x of rows) out.push([fmtDate(x.date), x.type, t('cat_' + x.category), (x.type === 'expense' ? '-' : '') + filsToInput(x.amount_fils), props.find((p) => p.id === x.property_id)?.name || '', x.method || '', x.reference || '', x.notes || '']);
+    download(`transactions-${todayYMD()}.csv`, toCSV(out), 'text/csv');
+  },
   'new-tx': async () => formSheet({ title: t('add_transaction'), fields: await txFields(), rec: { type: 'income', date: ymdToISO(todayYMD()) }, onSave: async (x) => { await save('transactions', x); refresh(); } }),
   'edit-tx': async (d) => { const rec = await getRec('transactions', d.id);
     await formSheet({ title: t('edit'), fields: await txFields(), rec, extraHTML: `<button type="button" class="btn danger sm" data-act="del" data-store="transactions" data-id="${rec.id}" data-label="${esc(fmtAED(rec.amount_fils))}" data-close>${icon('trash')} ${esc(t('delete'))}</button>`, onSave: async (x) => { await save('transactions', { ...rec, ...x }); refresh(); } }); },
@@ -2469,6 +2493,8 @@ Object.assign(ACTIONS, {
    Format: [key, English, Malayalam]
    ===================================================================== */
 const I18N_ROWS = [
+['filter_categories', 'Categories', 'വിഭാഗങ്ങൾ'], ['all_categories', 'All categories', 'എല്ലാ വിഭാഗങ്ങളും'], ['n_selected', '{n} selected', '{n} തിരഞ്ഞെടുത്തു'],
+['clear', 'Clear', 'മായ്ക്കുക'], ['net', 'Net', 'അറ്റം'], ['n_transactions', '{n} transactions', '{n} ഇടപാടുകൾ'],
 ['choose', 'Choose…', 'തിരഞ്ഞെടുക്കുക…'], ['banks_national', 'UAE national banks', 'യുഎഇ ദേശീയ ബാങ്കുകൾ'], ['banks_foreign', 'Foreign banks in the UAE', 'യുഎഇയിലെ വിദേശ ബാങ്കുകൾ'],
 ['banks_saved', 'Saved value', 'സേവ് ചെയ്ത മൂല്യം'], ['banks_other_group', 'Not listed', 'പട്ടികയിൽ ഇല്ല'], ['bank_other_opt', 'Other bank…', 'മറ്റ് ബാങ്ക്…'], ['f_bank_other', 'Bank name', 'ബാങ്കിന്റെ പേര്'],
 // --- general ---
