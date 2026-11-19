@@ -300,9 +300,9 @@ const SYNC_FIELDS = {
   leases: ['unit_type', 'unit_id', 'property_id', 'tenant_id', 'start_date', 'end_date', 'annual_rent_fils', 'admin_fee_fils', 'extra_charges', 'deposit_fils', 'deposit_status', 'deposit_refunded_fils', 'schedule_type', 'payment_method', 'status', 'renewed_from'],
   payment_schedules: ['lease_id', 'property_id', 'seq', 'kind', 'label', 'due_date', 'amount_fils', 'method', 'status', 'paid_on', 'pdc_id', 'transaction_id'],
   pdcs: ['direction', 'cheque_no', 'bank', 'amount_fils', 'due_date', 'status', 'party', 'lease_id', 'schedule_id', 'property_id', 'replaced_by'],
-  transactions: ['type', 'category', 'categories', 'splits', 'amount_fils', 'date', 'property_id', 'lease_id', 'tenant_id', 'method', 'reference'],
-  expenses: ['date', 'amount_fils', 'merchant', 'category', 'property_id', 'source'],
-  bills: ['name', 'provider', 'account_no', 'amount_fils', 'due_date', 'status', 'paid_on', 'property_id'],
+  transactions: ['doc_no', 'type', 'category', 'categories', 'splits', 'amount_fils', 'date', 'property_id', 'lease_id', 'tenant_id', 'method', 'reference'],
+  expenses: ['doc_no', 'date', 'amount_fils', 'merchant', 'category', 'property_id', 'source'],
+  bills: ['doc_no', 'name', 'provider', 'account_no', 'amount_fils', 'due_date', 'status', 'paid_on', 'property_id'],
   health_logs: ['kind', 'date', 'weight_kg', 'systolic', 'diastolic', 'pulse', 'sugar', 'sugar_unit', 'sugar_type', 'cycle_start', 'cycle_end'],
   medicines: ['name', 'dose', 'times', 'start_date', 'end_date', 'active'],
   appointments: ['doctor', 'clinic', 'date_time', 'reason', 'remind_minutes'],
@@ -354,6 +354,7 @@ async function save(store, rec) {
   r.created_at = r.created_at || now; r.updated_at = now;
   r.deleted_at = r.deleted_at ?? null;
   r.owner_user_id = r.owner_user_id || S.user?.id || null;
+  await docAssign(store, r);
   await idb.put(store, r); invalidate(store);
   if (SYNC_FIELDS[store]) await queueSync(store, r.id);
   return r;
@@ -1735,6 +1736,42 @@ Object.assign(ACTIONS, {
   },
 });
 
+/* ---------------- Document numbering (Settings → Numbering) ----------------
+   Format per series: prefix + separator + zero-padded number, e.g. RCT-0001. The prefix may contain
+   {YYYY} {YY} {MM}; the counter then restarts for each new prefix. The next number is always
+   max(start, highest number already used with this prefix + 1), so numbers synced in from other
+   devices are taken into account and a number is never reused on this device. */
+const DOC_SERIES = { bills: { def: 'BIL', stores: ['bills'] }, expenses: { def: 'EXP', stores: ['expenses'] }, payments: { def: 'PAY', stores: ['transactions'] }, receipts: { def: 'RCT', stores: ['transactions'] } };
+function docSeriesOf(store, r) { return store === 'bills' ? 'bills' : store === 'expenses' ? 'expenses' : store === 'transactions' ? (r.type === 'expense' ? 'payments' : 'receipts') : null; }
+async function docFormat(series) { return { prefix: DOC_SERIES[series].def, sep: '-', digits: 4, start: 1, on: true, ...(await meta.get('docfmt:' + series, {})) }; }
+function docPrefix(f, iso) { const d = ymd(iso || nowISO()); return f.prefix.replace(/\{YYYY\}/g, d.slice(0, 4)).replace(/\{YY\}/g, d.slice(2, 4)).replace(/\{MM\}/g, d.slice(5, 7)) + (f.prefix ? f.sep : ''); }
+const docFormatNo = (f, n, iso) => docPrefix(f, iso) + String(n).padStart(Math.max(1, Math.min(10, +f.digits || 1)), '0');
+const docIssued = new Set(); // numbers handed out but maybe not written yet
+async function docHighest(series, pre) {
+  let max = 0;
+  for (const no of docIssued) if (no.startsWith(pre) && /^\d+$/.test(no.slice(pre.length))) max = Math.max(max, parseInt(no.slice(pre.length), 10));
+  for (const st of DOC_SERIES[series].stores) for (const r of await list(st, { withDeleted: true })) {
+    if (typeof r.doc_no !== 'string' || !r.doc_no.startsWith(pre)) continue;
+    const tail = r.doc_no.slice(pre.length); if (/^\d+$/.test(tail)) max = Math.max(max, parseInt(tail, 10));
+  }
+  return max;
+}
+async function docNextNo(series, f) { f = f || (await docFormat(series)); const pre = docPrefix(f); return docFormatNo(f, Math.max(+f.start || 1, (await docHighest(series, pre)) + 1)); }
+let docLock = Promise.resolve();
+/** Called by save(): gives new Bills/Expenses/Payments/Receipts their number (and a new one if a transaction flips between money in and out). */
+function docAssign(store, r) {
+  const series = docSeriesOf(store, r); if (!series || r.deleted_at) return Promise.resolve();
+  const run = docLock.then(async () => {
+    const prev = r.id ? await getRec(store, r.id) : null;
+    const flipped = prev && store === 'transactions' && prev.doc_no && prev.type !== r.type;
+    if (r.doc_no && !flipped) return;
+    const f = await docFormat(series); if (!f.on) { if (flipped) r.doc_no = null; return; }
+    r.doc_no = await docNextNo(series, f); docIssued.add(r.doc_no);
+  });
+  docLock = run.catch(() => {}); return run;
+}
+const docTag = (x) => (x.doc_no ? `<b style="color:var(--text)">${esc(x.doc_no)}</b> · ` : '');
+
 /* ---------------- Transactions ---------------- */
 const TX_CATS = ['rent', 'fees', 'deposit_in', 'deposit_refund', 'commission_in', 'landlord_rent', 'other'];
 const txSelected = () => (S.params.cats || '').split(',').filter(Boolean);
@@ -1766,7 +1803,7 @@ async function viewTransactions() {
       <div class="stat"><div class="l">${esc(t('expense'))}</div><div class="v" style="font-size:22px;color:var(--red)">${fmtAED(exp)}</div></div>
       <div class="stat accent"><div class="l">${esc(t('net'))} · ${esc(t('n_transactions', { n: rows.length }))}</div><div class="v" style="font-size:22px">${fmtAED(inc - exp)}</div></div></div>`;
   return pageHead(esc(t('r_transactions')), `<button class="btn primary" data-act="new-tx">${icon('plus')} ${esc(t('add'))}</button><button class="btn" data-act="tx-csv">${icon('download')} CSV</button>`) + filters +
-    (rows.length ? `<div class="list">${rows.slice(0, 400).map((x) => `<button class="item" data-act="edit-tx" data-id="${x.id}"><div class="grow"><div class="t">${esc(txCatLabel(x))}</div><div class="s">${fmtDate(x.date)} · ${esc(props.find((p) => p.id === x.property_id)?.name || '')} · ${esc(t('pm_' + (x.method || 'Cash')))} ${esc(x.reference || '')}</div>${txSplitText(x) ? `<div class="s" style="color:var(--text)">${esc(txSplitText(x))}</div>` : ''}</div>
+    (rows.length ? `<div class="list">${rows.slice(0, 400).map((x) => `<button class="item" data-act="edit-tx" data-id="${x.id}"><div class="grow"><div class="t">${esc(txCatLabel(x))}</div><div class="s">${docTag(x)}${fmtDate(x.date)} · ${esc(props.find((p) => p.id === x.property_id)?.name || '')} · ${esc(t('pm_' + (x.method || 'Cash')))} ${esc(x.reference || '')}</div>${txSplitText(x) ? `<div class="s" style="color:var(--text)">${esc(txSplitText(x))}</div>` : ''}</div>
       <span class="amt" style="color:${x.type === 'income' ? 'var(--green)' : 'var(--red)'}">${x.type === 'income' ? '+' : '−'}${fmtAED(x.amount_fils)}</span></button>`).join('')}</div>` : `<div class="empty">${esc(t('nothing_here'))}</div>`);
 }
 async function txFields() {
@@ -1832,7 +1869,7 @@ function mountTxSplits(el, rec) {
 }
 async function txSheet(rec, extra) {
   let collect = () => ({ splits: [] });
-  return formSheet({ title: rec.id ? t('edit') : t('add_transaction'), fields: await txFields(), rec, extraHTML: extra || '',
+  return formSheet({ title: rec.id ? (rec.doc_no || t('edit')) : t('add_transaction'), fields: await txFields(), rec, extraHTML: extra || '',
     onMount: (el) => { collect = mountTxSplits(el, rec); },
     onSave: async (x) => { const r = collect(); if (r.err) return false; await save('transactions', txNorm({ ...rec, ...x }, r.splits)); refresh(); } });
 }
@@ -1843,13 +1880,13 @@ Object.assign(ACTIONS, {
   'tx-csv': async () => {
     const props = await list('properties'); const rows = txFilterRows((await list('transactions')).sort(by('date', -1)), txSelected(), S.params.type || '');
     const cats = txSelected(); const sg = (x, v) => (x.type === 'expense' ? '-' : '') + filsToInput(v);
-    const out = [['Date', 'Type', 'Category', 'Amount (AED)', 'Transaction total (AED)', 'Property', 'Method', 'Reference', 'Notes']];
-    for (const x of rows) for (const p of txParts(x)) if (!cats.length || cats.includes(p.category)) out.push([fmtDate(x.date), x.type, t('cat_' + p.category), sg(x, p.amount_fils), sg(x, x.amount_fils), props.find((q) => q.id === x.property_id)?.name || '', x.method || '', x.reference || '', x.notes || '']);
+    const out = [['No.', 'Date', 'Type', 'Category', 'Amount (AED)', 'Transaction total (AED)', 'Property', 'Method', 'Reference', 'Notes']];
+    for (const x of rows) for (const p of txParts(x)) if (!cats.length || cats.includes(p.category)) out.push([x.doc_no || '', fmtDate(x.date), x.type, t('cat_' + p.category), sg(x, p.amount_fils), sg(x, x.amount_fils), props.find((q) => q.id === x.property_id)?.name || '', x.method || '', x.reference || '', x.notes || '']);
     download(`transactions-${todayYMD()}.csv`, toCSV(out), 'text/csv');
   },
   'new-tx': () => txSheet({ type: 'income', date: ymdToISO(todayYMD()) }),
   'edit-tx': async (d) => { const rec = await getRec('transactions', d.id);
-    await txSheet(rec, `<button type="button" class="btn danger sm" data-act="del" data-store="transactions" data-id="${rec.id}" data-label="${esc(fmtAED(rec.amount_fils))}" data-close>${icon('trash')} ${esc(t('delete'))}</button>`); },
+    await txSheet(rec, `<button type="button" class="btn sm" data-act="print-tx" data-id="${rec.id}">${icon('print')} ${esc(t('print_voucher'))}</button> <button type="button" class="btn danger sm" data-act="del" data-store="transactions" data-id="${rec.id}" data-label="${esc(fmtAED(rec.amount_fils))}" data-close>${icon('trash')} ${esc(t('delete'))}</button>`); },
 });
 
 /* ---------------- Expenses + OCR receipt scanner ---------------- */
@@ -1867,13 +1904,13 @@ async function viewExpenses() {
   return pageHead(esc(t('r_expenses')), `<button class="btn primary" data-act="scan-receipt">${icon('camera')} ${esc(t('scan_receipt'))}</button><button class="btn" data-act="new-expense">${icon('plus')} ${esc(t('add'))}</button>`) +
     tabs([['all', t('all')], ['property', t('property_expenses')], ['personal', t('personal_expenses')]], scope, 'scope') +
     `<div class="stat" style="margin-bottom:12px"><div class="l">${esc(t('this_month'))}</div><div class="v">${fmtAED(sum(rows.filter((x) => ymd(x.date).startsWith(month)), (x) => x.amount_fils))}</div></div>` +
-    (rows.length ? `<div class="list">${rows.slice(0, 400).map((x) => `<button class="item" data-act="edit-expense" data-id="${x.id}">${atts.some((a) => a.record_id === x.id) ? icon('receipt') : icon('wallet')}<div class="grow"><div class="t">${esc(x.merchant)}</div><div class="s">${fmtDate(x.date)} · ${esc(t('cat_' + x.category))}${x.property_id ? ' · ' + esc(props.find((p) => p.id === x.property_id)?.name || '') : ''}${x.source === 'ocr' ? ' · OCR' : ''}</div></div><span class="amt">${fmtAED(x.amount_fils)}</span></button>`).join('')}</div>` : `<div class="empty">${esc(t('empty_expenses'))}</div>`);
+    (rows.length ? `<div class="list">${rows.slice(0, 400).map((x) => `<button class="item" data-act="edit-expense" data-id="${x.id}">${atts.some((a) => a.record_id === x.id) ? icon('receipt') : icon('wallet')}<div class="grow"><div class="t">${esc(x.merchant)}</div><div class="s">${docTag(x)}${fmtDate(x.date)} · ${esc(t('cat_' + x.category))}${x.property_id ? ' · ' + esc(props.find((p) => p.id === x.property_id)?.name || '') : ''}${x.source === 'ocr' ? ' · OCR' : ''}</div></div><span class="amt">${fmtAED(x.amount_fils)}</span></button>`).join('')}</div>` : `<div class="empty">${esc(t('empty_expenses'))}</div>`);
 }
 Object.assign(ACTIONS, {
   'new-expense': async () => formSheet({ title: t('add_expense'), fields: await expenseFields(), rec: { date: ymdToISO(todayYMD()) }, onSave: async (x) => { await save('expenses', { ...x, source: 'manual' }); refresh(); } }),
   'edit-expense': async (d) => {
     const rec = await getRec('expenses', d.id); const att = (await attachmentsFor(rec.id))[0];
-    await formSheet({ title: t('edit'), fields: await expenseFields(), rec,
+    await formSheet({ title: rec.doc_no || t('edit'), fields: await expenseFields(), rec,
       extraHTML: `${att ? `<img src="${objURL(att.blob)}" alt="" style="max-width:100%;max-height:260px;border-radius:12px;margin-bottom:10px">` : ''}<button type="button" class="btn danger sm" data-act="del" data-store="expenses" data-id="${rec.id}" data-label="${esc(rec.merchant)}" data-close>${icon('trash')} ${esc(t('delete'))}</button>`,
       onSave: async (x) => { await save('expenses', { ...rec, ...x }); refresh(); } });
   },
@@ -1944,16 +1981,16 @@ async function billFields() {
 }
 async function viewBills() {
   const rows = (await list('bills')).sort(by('due_date')); const unpaid = rows.filter((b) => b.status !== 'paid'); const paid = rows.filter((b) => b.status === 'paid').reverse();
-  const item = (b) => { const d = daysUntil(b.due_date); return `<div class="item"><div class="grow" data-act="edit-bill" data-id="${b.id}"><div class="t">${esc(b.name)}</div><div class="s">${esc(b.provider || '')} ${esc(b.account_no || '')} · ${fmtDate(b.due_date)}</div></div><span class="amt">${fmtAED(b.amount_fils)}</span>${b.status === 'paid' ? badge('paid') : `${badge(d < 0 ? 'overdue' : 'unpaid', d < 0 ? t('overdue') : t('st_unpaid'))}<button class="btn sm primary" data-act="pay-bill" data-id="${b.id}">${esc(t('mark_paid'))}</button>`}</div>`; };
+  const item = (b) => { const d = daysUntil(b.due_date); return `<div class="item"><div class="grow" data-act="edit-bill" data-id="${b.id}"><div class="t">${esc(b.name)}</div><div class="s">${docTag(b)}${esc(b.provider || '')} ${esc(b.account_no || '')} · ${fmtDate(b.due_date)}</div></div><span class="amt">${fmtAED(b.amount_fils)}</span>${b.status === 'paid' ? badge('paid') : `${badge(d < 0 ? 'overdue' : 'unpaid', d < 0 ? t('overdue') : t('st_unpaid'))}<button class="btn sm primary" data-act="pay-bill" data-id="${b.id}">${esc(t('mark_paid'))}</button>`}</div>`; };
   return pageHead(esc(t('r_bills')), `<button class="btn primary" data-act="new-bill">${icon('plus')} ${esc(t('add_bill'))}</button>`) +
     `<h3 style="margin:8px 0">${esc(t('unpaid'))} · ${fmtAED(sum(unpaid, (b) => b.amount_fils))}</h3>${unpaid.length ? `<div class="list">${unpaid.map(item).join('')}</div>` : `<div class="empty">${esc(t('nothing_here'))}</div>`}
     <h3 style="margin:18px 0 8px">${esc(t('paid'))}</h3>${paid.length ? `<div class="list">${paid.slice(0, 100).map(item).join('')}</div>` : `<div class="empty">—</div>`}`;
 }
 Object.assign(ACTIONS, {
   'new-bill': async () => formSheet({ title: t('add_bill'), fields: await billFields(), onSave: async (x) => { await save('bills', { ...x, status: 'unpaid' }); refresh(); } }),
-  'edit-bill': async (d) => { const rec = await getRec('bills', d.id); await formSheet({ title: rec.name, fields: await billFields(), rec, extraHTML: `<button type="button" class="btn danger sm" data-act="del" data-store="bills" data-id="${rec.id}" data-label="${esc(rec.name)}" data-close>${icon('trash')} ${esc(t('delete'))}</button>`, onSave: async (x) => { await save('bills', { ...rec, ...x }); refresh(); } }); },
+  'edit-bill': async (d) => { const rec = await getRec('bills', d.id); await formSheet({ title: rec.doc_no ? `${rec.name} · ${rec.doc_no}` : rec.name, fields: await billFields(), rec, extraHTML: `<button type="button" class="btn danger sm" data-act="del" data-store="bills" data-id="${rec.id}" data-label="${esc(rec.name)}" data-close>${icon('trash')} ${esc(t('delete'))}</button>`, onSave: async (x) => { await save('bills', { ...rec, ...x }); refresh(); } }); },
   'pay-bill': async (d) => { const b = await getRec('bills', d.id); await save('bills', { ...b, status: 'paid', paid_on: ymdToISO(todayYMD()) });
-    if (await confirmBox(t('next_bill_q'))) await save('bills', { ...b, id: undefined, created_at: undefined, status: 'unpaid', paid_on: null, due_date: ymdToISO(addMonthsYMD(ymd(b.due_date), 1)) });
+    if (await confirmBox(t('next_bill_q'))) await save('bills', { ...b, id: undefined, created_at: undefined, doc_no: undefined, status: 'unpaid', paid_on: null, due_date: ymdToISO(addMonthsYMD(ymd(b.due_date), 1)) });
     refresh(); },
 });
 
@@ -2346,6 +2383,59 @@ Object.assign(ACTIONS, {
 });
 
 /* ---------------- Settings ---------------- */
+async function numberingCard() {
+  const rows = []; let missing = 0;
+  for (const s of Object.keys(DOC_SERIES)) {
+    const f = await docFormat(s); const next = await docNextNo(s, f);
+    rows.push(`<div class="row between" style="gap:10px"><div><b>${esc(t('series_' + s))}</b><div class="tiny muted">${f.on ? esc(t('next_no', { no: next })) : esc(t('numbering_off'))}</div></div><button class="btn sm" data-act="doc-fmt" data-s="${s}">${esc(t('edit_format'))}</button></div>`);
+  }
+  for (const st of ['bills', 'expenses', 'transactions']) missing += (await list(st)).filter((r) => !r.doc_no).length;
+  return `<div class="card stack"><h3>${esc(t('numbering'))}</h3><p class="tiny muted">${esc(t('numbering_note'))}</p>${rows.join('')}
+    ${missing ? `<button class="btn ghost" data-act="doc-backfill">${esc(t('number_existing', { n: missing }))}</button>` : ''}</div>`;
+}
+function docFmtFields() {
+  return [{ k: 'prefix', label: t('f_prefix'), max: 20, help: t('prefix_help'), validate: (v) => (/^[A-Za-z0-9\-\/_.#{} ]*$/.test(v) && !/\{(?!YYYY\}|YY\}|MM\})/.test(v) ? '' : t('err_prefix')) },
+    { k: 'sep', type: 'select', label: t('f_separator'), opts: [['-', '-  (RCT-0001)'], ['/', '/  (RCT/0001)'], ['|', '|  (RCT|0001)'], ['.', '.  (RCT.0001)'], ['', t('sep_none') + '  (RCT0001)']] },
+    { k: 'digits', type: 'number', label: t('f_digits'), req: true, min: 1, max: 10, step: 1 }, { k: 'start', type: 'number', label: t('f_start_no'), req: true, min: 1, step: 1, help: t('start_help') },
+    { k: 'on', type: 'checkbox', label: t('auto_number'), full: true }];
+}
+Object.assign(ACTIONS, {
+  'doc-fmt': async (d) => {
+    const s = d.s; const cur = await docFormat(s); const fields = docFmtFields();
+    await formSheet({ title: t('series_' + s), fields, rec: cur, saveLabel: t('save'),
+      extraHTML: `<div class="card" style="margin-top:6px"><span class="tiny muted">${esc(t('preview'))}</span><div class="big" style="font:800 22px var(--font-display,inherit)" data-doc-preview>—</div></div>`,
+      onMount: (el) => {
+        const form = el.querySelector('form'); const pv = el.querySelector('[data-doc-preview]');
+        const upd = async () => { const f = { ...cur, prefix: form.prefix.value.trim(), sep: form.sep.value, digits: +form.digits.value || 1, start: +form.start.value || 1 };
+          pv.textContent = /^[A-Za-z0-9\-\/_.#{} ]*$/.test(f.prefix) ? await docNextNo(s, f) : '—'; };
+        form.addEventListener('input', upd); form.addEventListener('change', upd); upd();
+      },
+      onSave: async (x) => { await meta.set('docfmt:' + s, { prefix: x.prefix, sep: x.sep ?? '-', digits: Math.round(x.digits), start: Math.round(x.start), on: !!x.on }); toast(t('saved'), 'ok'); refresh(); } });
+  },
+  'doc-backfill': async () => {
+    let n = 0;
+    for (const st of ['bills', 'expenses', 'transactions']) {
+      const todo = (await list(st)).filter((r) => !r.doc_no).sort((a, b) => String(a.date || a.due_date || a.created_at).localeCompare(String(b.date || b.due_date || b.created_at)) || String(a.created_at).localeCompare(String(b.created_at)));
+      for (const r of todo) { const out = await save(st, r); if (out.doc_no) n++; }
+    }
+    toast(t('n_numbered', { n }), 'ok'); refresh();
+  },
+  'print-tx': async (d) => {
+    const x = await getRec('transactions', d.id); if (!x) return;
+    const inc = x.type === 'income'; const prop = await getRec('properties', x.property_id); const ten = await getRec('tenants', x.tenant_id);
+    const parts = txParts(x);
+    printHTML(x.doc_no || 'Voucher', `<div class="brand"><div><div class="logo"><span>Digitz</span> PMS</div><div class="muted">${esc(S.agency?.company || S.user?.name || '')}</div></div>
+      <div style="text-align:right"><h1>${inc ? 'Receipt Voucher' : 'Payment Voucher'}</h1><div>${inc ? 'രസീത് വൗച്ചർ' : 'പേയ്മെന്റ് വൗച്ചർ'}</div><div class="big">${esc(x.doc_no || '—')}</div><div class="muted">${fmtDate(x.date)}</div></div></div>
+      <div class="grid"><div class="box"><div class="muted">${inc ? 'Received from / ലഭിച്ചത്' : 'Paid to / നൽകിയത്'}</div><b>${esc(ten?.name || prop?.owner_name || '—')}</b></div>
+        <div class="box"><div class="muted">Property / പ്രോപ്പർട്ടി</div><b>${esc(prop?.name || '—')}</b></div></div>
+      <table><thead><tr><th>Category / വിഭാഗം</th><th class="num">Amount (AED)</th></tr></thead><tbody>${parts.map((p) => `<tr><td>${esc(t('cat_' + p.category))}</td><td class="num">${fmtAED(p.amount_fils)}</td></tr>`).join('')}
+        <tr class="tot"><td>Total / ആകെ</td><td class="num">${fmtAED(x.amount_fils)}</td></tr></tbody></table>
+      <p>Method / രീതി: <b>${esc(x.method || '—')}</b>${x.reference ? ` · Ref: ${esc(x.reference)}` : ''}</p>${x.notes ? `<p class="muted">${esc(x.notes)}</p>` : ''}
+      <div class="grid" style="margin-top:48px"><div style="border-top:1px solid #999;padding-top:6px">Signature / ഒപ്പ്</div><div style="border-top:1px solid #999;padding-top:6px">${inc ? 'Received by' : 'Approved by'}</div></div>
+      <footer>Generated by Digitz PMS · ${fmtDateTime(nowISO())}</footer>`);
+  },
+});
+
 async function viewSettings() {
   const bio = await webauthnAvailable();
   const lastSync = flags.get('lastSync');
@@ -2363,6 +2453,7 @@ async function viewSettings() {
       <p class="tiny muted">${esc(t('autolock_note'))}</p></div>
     <div class="card stack"><h3>${esc(t('cloud_sync'))}</h3><p class="small">${esc(t('sync_' + S.syncState))} · ${esc(t('last_sync'))}: ${lastSync ? fmtDateTime(lastSync) : '—'} · ${esc(t('pending_changes', { n: pending }))}</p>
       <button class="btn" data-act="sync">${icon('sync')} ${esc(t('sync_now'))}</button><a class="btn ghost" href="#/subscription">${esc(t('r_subscription'))}</a></div>
+    ${await numberingCard()}
     <div class="card stack"><h3>${esc(t('notifications'))}</h3><p class="small muted">${esc(t('notif_note'))}</p>
       <button class="btn" data-act="notif-local">${esc(t('enable_local_notif'))}</button><button class="btn" data-act="push-on">${esc(t('enable_push'))}</button></div>
     <div class="card stack"><h3>${esc(t('about'))}</h3><p class="small muted">Digitz PMS v${APP.version} · ${esc(t('offline_first'))}</p><button class="btn ghost" data-act="check-update">${esc(t('check_update'))}</button></div></div>`;
@@ -2573,6 +2664,16 @@ Object.assign(ACTIONS, {
    Format: [key, English, Malayalam]
    ===================================================================== */
 const I18N_ROWS = [
+['numbering', 'Document numbering', 'ഡോക്യുമെന്റ് നമ്പറിംഗ്'],
+['numbering_note', 'Each new record gets the next number automatically. Set the prefix and number format for each type.', 'ഓരോ പുതിയ റെക്കോർഡിനും അടുത്ത നമ്പർ സ്വയം ലഭിക്കും. ഓരോ തരത്തിനും പ്രിഫിക്സും നമ്പർ ഫോർമാറ്റും സജ്ജമാക്കുക.'],
+['series_bills', 'Bills', 'ബില്ലുകൾ'], ['series_expenses', 'Expenses', 'ചെലവുകൾ'], ['series_payments', 'Payments (money out)', 'പേയ്മെന്റുകൾ (പുറത്തേക്ക്)'], ['series_receipts', 'Receipts (money in)', 'രസീതുകൾ (അകത്തേക്ക്)'],
+['next_no', 'Next: {no}', 'അടുത്തത്: {no}'], ['numbering_off', 'Automatic numbering is off', 'സ്വയം നമ്പറിംഗ് ഓഫാണ്'], ['edit_format', 'Edit format', 'ഫോർമാറ്റ് മാറ്റുക'],
+['number_existing', 'Number {n} existing records', 'നിലവിലുള്ള {n} റെക്കോർഡുകൾക്ക് നമ്പർ നൽകുക'], ['n_numbered', '{n} records numbered', '{n} റെക്കോർഡുകൾക്ക് നമ്പർ നൽകി'],
+['f_prefix', 'Prefix', 'പ്രിഫിക്സ്'], ['f_separator', 'Separator', 'വേർതിരിക്കൽ'], ['sep_none', 'None', 'ഒന്നുമില്ല'], ['f_digits', 'Digits', 'അക്കങ്ങൾ'], ['f_start_no', 'Start number', 'ആരംഭ നമ്പർ'],
+['prefix_help', 'Letters, numbers and - / _ . # — add {YYYY}, {YY} or {MM} to include the year or month (numbering restarts each period).', 'അക്ഷരങ്ങൾ, അക്കങ്ങൾ, - / _ . # — വർഷമോ മാസമോ ചേർക്കാൻ {YYYY}, {YY} അല്ലെങ്കിൽ {MM} ചേർക്കുക (ഓരോ കാലയളവിലും നമ്പറിംഗ് വീണ്ടും തുടങ്ങും).'],
+['start_help', 'Numbers already used are never repeated: the next number is the higher of this and the last one used + 1.', 'ഉപയോഗിച്ച നമ്പറുകൾ ആവർത്തിക്കില്ല: ഇതോ അവസാനം ഉപയോഗിച്ചത് + 1 ഓ, ഏതാണോ വലുത് അതാണ് അടുത്ത നമ്പർ.'],
+['err_prefix', 'Use letters, numbers, - / _ . # and {YYYY} {YY} {MM} only.', 'അക്ഷരങ്ങൾ, അക്കങ്ങൾ, - / _ . # , {YYYY} {YY} {MM} എന്നിവ മാത്രം ഉപയോഗിക്കുക.'],
+['auto_number', 'Number new records automatically', 'പുതിയ റെക്കോർഡുകൾക്ക് സ്വയം നമ്പർ നൽകുക'], ['preview', 'Next number', 'അടുത്ത നമ്പർ'], ['print_voucher', 'Print voucher', 'വൗച്ചർ പ്രിന്റ്'],
 ['f_categories', 'Categories', 'വിഭാഗങ്ങൾ'], ['cat_multi_help', 'Tick one or more. With two or more, split the amount between them below.', 'ഒന്നോ അതിലധികമോ തിരഞ്ഞെടുക്കുക. രണ്ടോ അതിലധികമോ ആണെങ്കിൽ, തുക താഴെ അവയ്ക്കിടയിൽ വിഭജിക്കുക.'],
 ['split_amount', 'Split the amount', 'തുക വിഭജിക്കുക'], ['split_evenly', 'Split evenly', 'തുല്യമായി വിഭജിക്കുക'],
 ['split_status', '{used} of {total} allocated · {rem} left', '{total}-ൽ {used} വിഭജിച്ചു · {rem} ബാക്കി'],
