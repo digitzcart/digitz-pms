@@ -16,9 +16,23 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name == 'main' && 'production' || 'test' }}
     steps:
+      - name: Check server is configured
+        id: ready
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+        run: |
+          if [ -z "$SSH_HOST" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No server configured for '${{ github.ref_name == 'main' && 'production' || 'test' }}' yet - deploy skipped. Run deploy/setup-server.sh and add the secrets (see DEPLOY.md)."
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v4
+        if: steps.ready.outputs.ready == 'true'
 
       - name: Stamp build version (forces PWA cache refresh)
+        if: steps.ready.outputs.ready == 'true'
         run: |
           SHORT=$(git rev-parse --short HEAD)
           sed -i "s/const VERSION = 'digitz-v[^']*'/const VERSION = 'digitz-${SHORT}'/" sw.js
@@ -26,6 +40,7 @@ jobs:
           grep -n "const VERSION" sw.js
 
       - name: Set up SSH
+        if: steps.ready.outputs.ready == 'true'
         env:
           SSH_KEY: ${{ secrets.SSH_KEY }}
           SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -36,6 +51,7 @@ jobs:
           ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
 
       - name: Upload files (config.php and install.lock on the server are kept)
+        if: steps.ready.outputs.ready == 'true'
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
@@ -49,6 +65,7 @@ jobs:
           rsync -az -e "ssh -i ~/.ssh/id_deploy" deploy/migrate.php deploy/install-cli.php "$SSH_USER@$SSH_HOST:$DEPLOY_PATH/cron/"
 
       - name: Apply database changes
+        if: steps.ready.outputs.ready == 'true'
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
@@ -56,6 +73,7 @@ jobs:
         run: ssh -i ~/.ssh/id_deploy "$SSH_USER@$SSH_HOST" "php $DEPLOY_PATH/cron/migrate.php"
 
       - name: Smoke test
+        if: steps.ready.outputs.ready == 'true'
         env:
           APP_URL: ${{ vars.APP_URL }}
         run: |
