@@ -1943,12 +1943,15 @@ function txLinesOf(x) {
   const inc = x.type !== 'expense';
   return [...txParts(x).map((p) => ({ side: inc ? 'from' : 'to', account: p.category, amount_fils: p.amount_fils })), { side: inc ? 'to' : 'from', account: x.method === 'Cash' ? 'cash' : 'bank', amount_fils: x.amount_fils }];
 }
-const TX_GROUPS = ['asset', 'income', 'expense', 'liability', 'equity'];
+/** Record Income offers only Cash & bank and Income items. An item already on a record (e.g. a deposit or an
+   older expense) is still listed so the record can be opened and saved unchanged. */
+const TX_GROUPS = ['asset', 'income'];
 function txAcctSelect(cur) {
-  const keep = cur ? [cur] : [];
+  const keep = cur ? [cur] : []; const curType = cur ? acctOf(cur)?.type : null;
+  const groups = curType && !TX_GROUPS.includes(curType) ? [...TX_GROUPS, curType] : TX_GROUPS;
   const opts = (ty) => LEDGER.filter((a) => a.type === ty && (a.active || keep.includes(a.code))).sort((a, b) => (a.system === b.system ? 0 : a.system ? -1 : 1) || acctName(a.code).localeCompare(acctName(b.code)))
     .map((a) => `<option value="${esc(a.code)}" ${a.code === cur ? 'selected' : ''}>${esc(acctName(a.code))}</option>`).join('');
-  return `<select class="inp" data-acct aria-label="${esc(t('tx_item'))}"><option value="" ${cur ? '' : 'selected'}>${esc(t('choose'))}</option>${TX_GROUPS.map((ty) => { const o = opts(ty); return o ? `<optgroup label="${esc(t('grp_' + ty))}">${o}</optgroup>` : ''; }).join('')}</select>`;
+  return `<select class="inp" data-acct aria-label="${esc(t('tx_item'))}"><option value="" ${cur ? '' : 'selected'}>${esc(t('choose'))}</option>${groups.map((ty) => { const o = opts(ty); return o ? `<optgroup label="${esc(t('grp_' + ty))}">${o}</optgroup>` : ''; }).join('')}</select>`;
 }
 /** Works out what the rows mean. Returns { kind, err } — kind: income | expense | transfer. */
 function txClassify(from, to) {
@@ -2055,6 +2058,7 @@ async function viewRecord(p) {
     const collect = mountTxLines(root, rec);
     form.onsubmit = async (e) => {
       e.preventDefault(); const x = readForm(form, fields); if (!x) return; const r = collect(); if (r.err) return;
+      if (!rec.id && r.type === 'expense') { toast(t('err_income_only'), 'err'); return; }
       const btn = form.querySelector('[type=submit]'); btn.disabled = true;
       try {
         const out = await save('transactions', { ...rec, ...x, ...r });
@@ -2910,6 +2914,7 @@ Object.assign(ACTIONS, {
    Format: [key, English, Malayalam]
    ===================================================================== */
 const I18N_ROWS = [
+['err_income_only', 'Record Income is for money coming in: put the income item in From and Cash or Bank in To.', 'വരുമാനം രേഖപ്പെടുത്താനുള്ള പേജാണിത്: From-ൽ വരുമാന ഇനവും To-ൽ ക്യാഷ് അല്ലെങ്കിൽ ബാങ്കും നൽകുക.'],
 ['ls_cash', 'Paid in cash', 'ക്യാഷായി അടച്ചത്'], ['ls_transfer', '+ {amt} by transfer', '+ ട്രാൻസ്ഫർ വഴി {amt}'], ['ls_cheque', 'Received by cheque', 'ചെക്ക് വഴി ലഭിച്ചത്'],
 ['ls_cheques', 'No. of cheques', 'ചെക്കുകളുടെ എണ്ണം'], ['ls_cleared', '{n} cleared', '{n} ക്ലിയർ ചെയ്തു'], ['ls_balance', 'Balance', 'ബാക്കി'], ['ls_next_due', 'Next due', 'അടുത്ത അടവ്'], ['ls_fully_paid', 'Fully paid', 'പൂർണ്ണമായി അടച്ചു'],
 ['select', 'Select', 'തിരഞ്ഞെടുക്കുക'], ['err_one_tenant', 'Choose payments for one tenant at a time.', 'ഒരു സമയം ഒരു ടെനന്റിന്റെ പേയ്മെന്റുകൾ മാത്രം തിരഞ്ഞെടുക്കുക.'],
