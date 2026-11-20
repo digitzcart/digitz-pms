@@ -1454,9 +1454,10 @@ Object.assign(ACTIONS, {
 
 /* ---------------- Tenants ---------------- */
 const tenantFields = () => [
-  { k: 'name', label: t('f_full_name'), req: true, full: true }, { k: 'mobile', type: 'tel', label: t('f_mobile'), req: true }, { k: 'email', type: 'email', label: t('f_email') },
+  { k: 'name', label: t('f_full_name'), req: true }, { k: 'id_number', label: t('f_id_number'), help: t('id_text_only') },
+  { k: 'mobile', type: 'tel', label: t('f_mobile'), req: true }, { k: 'email', type: 'email', label: t('f_email') },
   { k: 'nationality', label: t('f_nationality') }, { k: 'id_type', type: 'select', label: t('f_id_type'), opts: [['emirates_id', t('doc_emirates_id')], ['passport', t('doc_passport')]], def: 'emirates_id' },
-  { k: 'id_number', label: t('f_id_number'), help: t('id_text_only') }, { k: 'emergency_name', label: t('f_emergency_name') }, { k: 'emergency_mobile', type: 'tel', label: t('f_emergency_mobile') },
+  { k: 'emergency_name', label: t('f_emergency_name') }, { k: 'emergency_mobile', type: 'tel', label: t('f_emergency_mobile') },
   { k: 'notes', type: 'textarea', label: t('f_notes'), full: true },
 ];
 async function viewTenants() {
