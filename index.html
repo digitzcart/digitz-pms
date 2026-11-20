@@ -74,7 +74,7 @@ h1{font-size:clamp(30px,7vw,52px)}h2{font-size:clamp(20px,4.5vw,28px)}h3{font-si
 .btn svg{width:18px;height:18px}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;background:var(--surface2);border:1px solid var(--line);font-size:12.5px;font-weight:700;white-space:nowrap}
 .chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
-@media(min-width:760px){#txform .formgrid{grid-template-columns:repeat(6,minmax(0,1fr))}#txform .formgrid>.field{grid-column:span 3}#txform .formgrid>[data-field=date],#txform .formgrid>[data-field=reference],#txform .formgrid>[data-field=tenant_id]{grid-column:span 2}#txform .formgrid>.full{grid-column:1/-1}}.tx-tbl tbody tr:hover{background:var(--surface2)}.tx-tbl td,.tx-tbl th{padding:11px 14px}.tenant-id-box{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:10px 14px;margin-bottom:12px;border-radius:12px;background:var(--accent);color:var(--accent-ink)}.tenant-id-box b{font-size:22px;font-weight:900;letter-spacing:.03em}.tenant-id-box .muted{color:inherit;opacity:.75}.tx-lines{display:grid;gap:10px}.tx-side{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--surface2)}.tx-side-h{display:flex;align-items:baseline;gap:8px;margin-bottom:10px;flex-wrap:wrap}.tx-side-h b{font-size:15px;text-transform:uppercase;letter-spacing:.04em}.tx-sum{margin-inline-start:auto;font-weight:800}.tx-line{display:grid;grid-template-columns:minmax(0,1fr) 170px 38px;gap:8px;margin-bottom:8px;align-items:center}.tx-line .tx-del{padding:0;height:38px;font-size:18px}.tx-swap{display:flex;justify-content:center;margin:-4px 0}.tx-bal{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:1px dashed var(--line)}.tx-lines.err .tx-bal{border-color:var(--red)}@media(max-width:560px){.tx-line{grid-template-columns:minmax(0,1fr) 120px 34px}}.chips .chip{cursor:pointer}.chip.pick{position:relative;cursor:pointer;padding:8px 13px;font-size:13px}.chip.pick input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}.chip.pick:has(input:checked){background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}.chip.pick:has(input:checked)::before{content:'✓'}.chip.pick:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}.field.err .chips{outline:1px solid var(--red);border-radius:12px;padding:6px}.chips .chip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+@media(min-width:760px){#txform .formgrid{grid-template-columns:repeat(6,minmax(0,1fr))}#txform .formgrid>.field{grid-column:span 3}#txform .formgrid>[data-field=date],#txform .formgrid>[data-field=reference],#txform .formgrid>[data-field=tenant_id]{grid-column:span 2}#txform .formgrid>.full{grid-column:1/-1}}.tx-tbl tbody tr:hover{background:var(--surface2)}.tx-tbl td,.tx-tbl th{padding:11px 14px}.tenant-id-box{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:10px 14px;margin-bottom:12px;border-radius:12px;background:var(--accent);color:var(--accent-ink)}.tenant-id-box b{font-size:22px;font-weight:900;letter-spacing:.03em}.tenant-id-box .muted{color:inherit;opacity:.75}.sched-bar{position:sticky;top:72px;z-index:5;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;margin-bottom:12px;border-radius:14px;background:var(--accent);color:var(--accent-ink)}.sched-bar[hidden]{display:none}.sched-bar [data-sched-total]{font-weight:800;margin-inline-end:auto}.sched-bar .btn.ghost{color:inherit;border-color:currentColor}.sched-bar .btn.primary{background:var(--bg);color:var(--accent)}.tx-lines{display:grid;gap:10px}.tx-side{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--surface2)}.tx-side-h{display:flex;align-items:baseline;gap:8px;margin-bottom:10px;flex-wrap:wrap}.tx-side-h b{font-size:15px;text-transform:uppercase;letter-spacing:.04em}.tx-sum{margin-inline-start:auto;font-weight:800}.tx-line{display:grid;grid-template-columns:minmax(0,1fr) 170px 38px;gap:8px;margin-bottom:8px;align-items:center}.tx-line .tx-del{padding:0;height:38px;font-size:18px}.tx-swap{display:flex;justify-content:center;margin:-4px 0}.tx-bal{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:1px dashed var(--line)}.tx-lines.err .tx-bal{border-color:var(--red)}@media(max-width:560px){.tx-line{grid-template-columns:minmax(0,1fr) 120px 34px}}.chips .chip{cursor:pointer}.chip.pick{position:relative;cursor:pointer;padding:8px 13px;font-size:13px}.chip.pick input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}.chip.pick:has(input:checked){background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}.chip.pick:has(input:checked)::before{content:'✓'}.chip.pick:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}.field.err .chips{outline:1px solid var(--red);border-radius:12px;padding:6px}.chips .chip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:800;letter-spacing:.02em;white-space:nowrap}
 .b-Vacant,.b-Cleared,.b-paid,.b-Paid,.b-Active,.b-Held,.b-Refunded{background:color-mix(in srgb,var(--green) 22%,transparent);color:var(--green)}
 .b-Booked,.b-Deposited,.b-Trial,.b-Partial,.b-Renewed{background:color-mix(in srgb,var(--blue) 22%,transparent);color:var(--blue)}
@@ -1623,13 +1623,32 @@ async function viewLease(id) {
       ${['Held', 'Partially refunded'].includes(l.deposit_status) ? `<button class="btn sm" data-act="refund-deposit" data-id="${id}">${esc(t('refund_deposit'))}</button>` : ''}</div>
      <div class="card"><div class="grid g2"><div class="stat"><div class="l">${esc(t('paid'))}</div><div class="v">${fmtAED(paid)}</div></div><div class="stat"><div class="l">${esc(t('remaining'))}</div><div class="v">${fmtAED(due)}</div></div></div></div></div>
     <h2 style="margin:22px 0 10px">${esc(t('payment_schedule'))}</h2>
-    <div class="list">${sch.map((s) => schedItem(s, pdcs)).join('') || `<div class="empty">—</div>`}</div>`;
+    ${schedBar()}<div class="list">${sch.map((s) => schedItem(s, pdcs)).join('') || `<div class="empty">—</div>`}</div>`;
 }
 function schedItem(s, pdcs, extra = '') {
   const p = s.pdc_id ? pdcs.find((x) => x.id === s.pdc_id) : null;
   const overdue = s.status === 'due' && ymd(s.due_date) < todayYMD();
-  return `<div class="item" style="cursor:default"><div class="grow"><div class="t">${esc(s.label || '')} ${extra}</div><div class="s">${fmtDate(s.due_date)} · ${esc(t('pm_' + (s.method || 'Cash')))}${p ? ` · ${esc(t('cheque'))} #${esc(p.cheque_no || '—')} ${badge(p.status)}` : ''}${s.paid_on ? ` · ${esc(t('paid_on'))} ${fmtDate(s.paid_on)}` : ''}</div></div>
-    <span class="amt">${fmtAED(s.amount_fils)}</span>${s.status === 'paid' ? badge('paid') : `${badge(overdue ? 'overdue' : 'due')}<button class="btn sm primary" data-act="mark-paid" data-id="${s.id}">${esc(t('mark_paid'))}</button>`}</div>`;
+  const pick = s.status === 'paid' ? '' : `<input type="checkbox" class="sched-pick" value="${s.id}" data-amt="${s.amount_fils}" aria-label="${esc(t('select'))} ${esc(s.label || '')}" style="width:20px;height:20px;accent-color:var(--accent);flex:none">`;
+  return `<label class="item sched-row" style="cursor:${pick ? 'pointer' : 'default'}">${pick}<div class="grow"><div class="t">${esc(s.label || '')} ${extra}</div><div class="s">${fmtDate(s.due_date)} · ${esc(t('pm_' + (s.method || 'Cash')))}${p ? ` · ${esc(t('cheque'))} #${esc(p.cheque_no || '—')} ${badge(p.status)}` : ''}${s.paid_on ? ` · ${esc(t('paid_on'))} ${fmtDate(s.paid_on)}` : ''}</div></div>
+    <span class="amt">${fmtAED(s.amount_fils)}</span>${s.status === 'paid' ? badge('paid') : `${badge(overdue ? 'overdue' : 'due')}<button type="button" class="btn sm primary" data-act="mark-paid" data-id="${s.id}">${esc(t('mark_paid'))}</button>`}</label>`;
+}
+/** Bar shown above a schedule list once rows are ticked: "2 selected · AED 20,000.00 · [Mark paid]". */
+const schedBar = () => `<div class="sched-bar" data-sched-bar hidden><b data-sched-count></b><span data-sched-total></span><button type="button" class="btn sm ghost" data-act="sched-clear">${esc(t('clear'))}</button><button type="button" class="btn primary" data-act="pay-selected">${icon('wallet')} ${esc(t('mark_paid'))}</button></div>`;
+function paintSchedBar() {
+  const bar = document.querySelector('[data-sched-bar]'); if (!bar) return;
+  const on = [...document.querySelectorAll('.sched-pick:checked')]; bar.hidden = !on.length;
+  bar.querySelector('[data-sched-count]').textContent = t('n_selected', { n: on.length });
+  bar.querySelector('[data-sched-total]').textContent = fmtAED(on.reduce((a, c) => a + (+c.dataset.amt || 0), 0));
+}
+document.addEventListener('change', (e) => { if (e.target.matches?.('.sched-pick')) paintSchedBar(); });
+/** Opens Record Income filled from the chosen schedules (one tenant at a time). */
+async function paySchedules(ids) {
+  ids = [...new Set(ids)]; if (!ids.length) return;
+  const leases = await list('leases'); const ss = (await Promise.all(ids.map((id) => getRec('payment_schedules', id)))).filter((x) => x && x.status !== 'paid');
+  if (!ss.length) return;
+  const tenantsOf = new Set(ss.map((x) => leases.find((l) => l.id === x.lease_id)?.tenant_id || ''));
+  if (tenantsOf.size > 1) { toast(t('err_one_tenant'), 'err'); return; }
+  go('#/record?sched=' + ss.map((x) => x.id).join(',') + '&back=' + encodeURIComponent(location.hash || '#/payments'));
 }
 Object.assign(ACTIONS, {
   'new-lease': () => openLeaseForm({ start_date: ymdToISO(todayYMD()), end_date: ymdToISO(addDaysYMD(addMonthsYMD(todayYMD(), 12), -1)), schedule_type: 'Quarterly', payment_method: 'Cheque' }),
@@ -1660,7 +1679,10 @@ Object.assign(ACTIONS, {
         await save('leases', { ...l, deposit_refunded_fils: refunded, deposit_status: refunded >= l.deposit_fils ? 'Refunded' : 'Partially refunded' }); refresh();
       } });
   },
-  'mark-paid': async (d) => {
+  'mark-paid': (d) => paySchedules([d.id, ...[...document.querySelectorAll('.sched-pick:checked')].map((c) => c.value)]),
+  'pay-selected': () => paySchedules([...document.querySelectorAll('.sched-pick:checked')].map((c) => c.value)),
+  'sched-clear': () => { document.querySelectorAll('.sched-pick:checked').forEach((c) => (c.checked = false)); paintSchedBar(); },
+  'mark-paid-quick': async (d) => {
     const s = await getRec('payment_schedules', d.id);
     await formSheet({ title: t('mark_paid'), fields: [{ k: 'date', type: 'date', label: t('f_date'), req: true }, { k: 'method', type: 'select', label: t('f_method'), req: true, opts: [['Cash', t('pm_Cash')], ['Cheque', t('pm_Cheque')], ['Transfer', t('pm_Transfer')]], def: s.method }, { k: 'reference', label: t('f_reference') }],
       rec: { date: ymdToISO(todayYMD()), method: s.method }, onSave: async (x) => { await markSchedulePaid(s, x); refresh(); } });
@@ -1671,6 +1693,11 @@ async function markSchedulePaid(s, { date, method, reference }) {
   const l = await getRec('leases', s.lease_id);
   const cat = s.kind === 'deposit' ? 'deposit_in' : s.kind === 'fees' ? 'fees' : 'rent';
   const tx = await save('transactions', { type: 'income', category: cat, amount_fils: s.amount_fils, date, property_id: s.property_id, lease_id: s.lease_id, tenant_id: l?.tenant_id, method, reference });
+  await applySchedulePaid(s, tx, { date, method });
+}
+/** Marks a schedule paid against an existing transaction (also used by Record Income). */
+async function applySchedulePaid(s, tx, { date, method }) {
+  if (s.status === 'paid') return; const l = await getRec('leases', s.lease_id);
   await save('payment_schedules', { ...s, status: 'paid', paid_on: date, method, transaction_id: tx.id });
   if (s.kind === 'deposit' && l) await save('leases', { ...l, deposit_status: 'Held' });
   if (s.pdc_id) { const p = await getRec('pdcs', s.pdc_id); if (p && p.status !== 'Cleared') await save('pdcs', { ...p, status: 'Cleared' }); }
@@ -1696,7 +1723,7 @@ async function viewPayments() {
   return pageHead(esc(t('r_payments'))) +
     `<div class="chips" style="margin-bottom:12px">${[['due', t('due_30')], ['overdue', t('overdue')], ['paid', t('paid')], ['all', t('all')]].map(([v, l]) => `<span class="chip ${f === v ? 'on' : ''}" data-act="tab" data-k="f" data-v="${v}">${esc(l)}</span>`).join('')}</div>
     <div class="stat" style="margin-bottom:12px"><div class="l">${esc(t('total'))}</div><div class="v">${fmtAED(sum(rows, (s) => s.amount_fils))}</div></div>` +
-    (rows.length ? `<div class="list">${rows.slice(0, 300).map((s) => schedItem(s, pdcs, `· ${esc(tname(s))}`)).join('')}</div>` : `<div class="empty">${esc(t('nothing_here'))}</div>`);
+    (rows.length ? `${schedBar()}<div class="list">${rows.slice(0, 300).map((s) => schedItem(s, pdcs, `· ${esc(tname(s))}`)).join('')}</div>` : `<div class="empty">${esc(t('nothing_here'))}</div>`);
 }
 
 /* ---------------- PDC tracker ---------------- */
@@ -1983,8 +2010,25 @@ async function txFields() {
     { k: 'property_id', type: 'select', label: t('f_property'), opts: await propertyOpts() }, { k: 'notes', type: 'textarea', label: t('f_notes'), full: true }];
 }
 /** Record Income page (Money → Record Income): the From / To form as a full page. #/record = new, #/record/<id> = edit. */
+const schedAcct = (x) => (x.kind === 'deposit' ? 'deposit_in' : x.kind === 'fees' ? 'fees' : 'rent');
+/** Builds a new Record Income entry from payment schedules: one From row per schedule, Cash/Bank on To. */
+async function recFromSchedules(ids) {
+  const leases = await list('leases'); const pdcs = await list('pdcs');
+  const ss = (await Promise.all(ids.map((id) => getRec('payment_schedules', id)))).filter((x) => x && !x.deleted_at && x.status !== 'paid').sort(by('due_date'));
+  if (!ss.length) return null;
+  const total = ss.reduce((a, x) => a + x.amount_fils, 0); const methods = [...new Set(ss.map((x) => x.method || 'Cash'))];
+  const method = methods.length === 1 ? methods[0] : 'Transfer'; const lease = leases.find((l) => l.id === ss[0].lease_id);
+  const props = [...new Set(ss.map((x) => x.property_id).filter(Boolean))];
+  const chq = ss.map((x) => pdcs.find((q) => q.id === x.pdc_id)?.cheque_no).filter(Boolean);
+  return { ss, rec: { type: 'income', date: ymdToISO(todayYMD()), tenant_id: lease?.tenant_id || '', lease_id: ss.length === 1 || new Set(ss.map((x) => x.lease_id)).size === 1 ? ss[0].lease_id : undefined,
+    property_id: props.length === 1 ? props[0] : '', method, reference: chq.length ? chq.map((c) => '#' + c).join(', ') : '',
+    notes: ss.map((x) => `${x.label || ''} · ${fmtDate(x.due_date)}`).join('\n'),
+    lines: [...ss.map((x) => ({ side: 'from', account: schedAcct(x), amount_fils: x.amount_fils })), { side: 'to', account: method === 'Cash' ? 'cash' : 'bank', amount_fils: total }] } };
+}
 async function viewRecord(p) {
-  const rec = p.id ? await getRec('transactions', p.id) : { type: 'income', date: ymdToISO(todayYMD()) };
+  const fromSched = !p.id && p.sched ? await recFromSchedules(p.sched.split(',').filter(Boolean)) : null;
+  const back = p.back && p.back.startsWith('#/') ? p.back : '#/transactions';
+  const rec = p.id ? await getRec('transactions', p.id) : fromSched ? fromSched.rec : { type: 'income', date: ymdToISO(todayYMD()) };
   if (p.id && (!rec || rec.deleted_at)) { setTimeout(() => go('#/transactions')); return ''; }
   const fields = await txFields();
   afterHooks.push((root) => {
@@ -1993,15 +2037,24 @@ async function viewRecord(p) {
     form.onsubmit = async (e) => {
       e.preventDefault(); const x = readForm(form, fields); if (!x) return; const r = collect(); if (r.err) return;
       const btn = form.querySelector('[type=submit]'); btn.disabled = true;
-      try { const out = await save('transactions', { ...rec, ...x, ...r }); toast(`${t('saved')}${out.doc_no ? ' · ' + out.doc_no : ''}`, 'ok'); go('#/transactions'); }
+      try {
+        const out = await save('transactions', { ...rec, ...x, ...r });
+        if (fromSched) for (const sc of fromSched.ss) { const cur = await getRec('payment_schedules', sc.id); if (cur) await applySchedulePaid(cur, out, { date: out.date, method: out.method }); }
+        toast(`${t('saved')}${out.doc_no ? ' · ' + out.doc_no : ''}${fromSched ? ' · ' + t('n_marked_paid', { n: fromSched.ss.length }) : ''}`, 'ok'); go(fromSched ? back : '#/transactions');
+      }
       catch (err) { console.error(err); toast(err.message || t('err_generic'), 'err'); } finally { btn.disabled = false; }
     };
   });
   const tools = rec.id ? `<button type="button" class="btn sm" data-act="print-tx" data-id="${rec.id}">${icon('print')} ${esc(t('print_voucher'))}</button>
     <button type="button" class="btn danger sm" data-act="del" data-store="transactions" data-id="${rec.id}" data-label="${esc(rec.doc_no || fmtAED(rec.amount_fils))}" data-back="#/transactions">${icon('trash')} ${esc(t('delete'))}</button>` : '';
-  return backLink('#/transactions', t('r_transactions')) + pageHead(esc(rec.id ? rec.doc_no || t('edit') : t('r_record')), tools, rec.id ? esc(t('r_record')) : '') +
+  const tenants = fromSched ? await list('tenants') : [];
+  const schedBox = fromSched ? `<div class="card sched-paying" style="max-width:880px;margin-bottom:12px"><div class="row between" style="gap:10px;flex-wrap:wrap"><b>${esc(t('paying_n', { n: fromSched.ss.length }))}</b><span class="muted small">${esc(tenantLabel(tenants.find((x) => x.id === rec.tenant_id)))}</span></div>
+      <table class="tbl" style="margin-top:8px"><tbody>${fromSched.ss.map((x) => `<tr><td>${esc(x.label || '')}</td><td>${fmtDate(x.due_date)}</td><td>${esc(acctName(schedAcct(x)))}</td><td class="num">${fmtAED(x.amount_fils)}</td></tr>`).join('')}
+      <tr class="tot"><td colspan="3"><b>${esc(t('total'))}</b></td><td class="num"><b>${fmtAED(fromSched.ss.reduce((a, x) => a + x.amount_fils, 0))}</b></td></tr></tbody></table>
+      <p class="tiny muted" style="margin:8px 0 0">${esc(t('paying_note'))}</p></div>` : '';
+  return backLink(fromSched ? back : '#/transactions', fromSched ? t('r_payments') : t('r_transactions')) + pageHead(esc(rec.id ? rec.doc_no || t('edit') : t('r_record')), tools, rec.id ? esc(t('r_record')) : '') + schedBox +
     `<div class="card" style="max-width:880px"><form id="txform" novalidate>${formHTML(fields, rec)}
-      <div class="actions" style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px"><a class="btn ghost" href="#/transactions">${esc(t('cancel'))}</a><button class="btn primary" type="submit">${esc(t('save'))}</button></div></form></div>`;
+      <div class="actions" style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px"><a class="btn ghost" href="${fromSched ? esc(back) : '#/transactions'}">${esc(t('cancel'))}</a><button class="btn primary" type="submit">${esc(t('save'))}</button></div></form></div>`;
 }
 function setTxCats(cats) { const p = new URLSearchParams(location.hash.split('?')[1] || ''); if (cats.length) p.set('cats', cats.join(',')); else p.delete('cats'); go('#/transactions' + (p.toString() ? '?' + p : '')); }
 Object.assign(ACTIONS, {
@@ -2838,6 +2891,9 @@ Object.assign(ACTIONS, {
    Format: [key, English, Malayalam]
    ===================================================================== */
 const I18N_ROWS = [
+['select', 'Select', 'തിരഞ്ഞെടുക്കുക'], ['err_one_tenant', 'Choose payments for one tenant at a time.', 'ഒരു സമയം ഒരു ടെനന്റിന്റെ പേയ്മെന്റുകൾ മാത്രം തിരഞ്ഞെടുക്കുക.'],
+['paying_n', 'Paying {n} scheduled payment(s)', '{n} ഷെഡ്യൂൾഡ് പേയ്മെന്റ്(കൾ) അടയ്ക്കുന്നു'], ['n_marked_paid', '{n} marked paid', '{n} എണ്ണം അടച്ചതായി രേഖപ്പെടുത്തി'],
+['paying_note', 'These payments are marked paid when you save. Cheques linked to them are marked Cleared.', 'സേവ് ചെയ്യുമ്പോൾ ഈ പേയ്മെന്റുകൾ അടച്ചതായി രേഖപ്പെടുത്തും. ബന്ധപ്പെട്ട ചെക്കുകൾ ക്ലിയർ ആയി രേഖപ്പെടുത്തും.'],
 ['f_tenant_id', 'Tenant ID', 'ടെനന്റ് ഐഡി'], ['tenant_id_new', 'T + last 5 digits of the mobile — given when you save', 'T + മൊബൈലിന്റെ അവസാന 5 അക്കങ്ങൾ — സേവ് ചെയ്യുമ്പോൾ നൽകും'],
 ['tenant_id_fixed', 'Stays the same even if the mobile changes', 'മൊബൈൽ മാറിയാലും ഇത് മാറില്ല'], ['tenant_id_hint', 'Enter the mobile number to create the ID', 'ഐഡി സൃഷ്ടിക്കാൻ മൊബൈൽ നമ്പർ നൽകുക'],
 ['voucher_no', 'Voucher No.', 'വൗച്ചർ നമ്പർ'], ['f_name_col', 'Name', 'പേര്'],
