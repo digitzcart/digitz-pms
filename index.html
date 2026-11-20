@@ -1153,7 +1153,6 @@ const ROUTES = {
   payments: { icon: 'wallet', view: () => viewPayments() },
   pdcs: { icon: 'cheque', view: () => viewPdcs() },
   record: { icon: 'plus', view: (p) => viewRecord(p) },
-  transfer: { icon: 'sync', view: (p) => viewTransfer(p) },
   transactions: { icon: 'receipt', view: () => viewTransactions() },
   expenses: { icon: 'receipt', view: () => viewExpenses() },
   bills: { icon: 'bolt', view: () => viewBills() },
@@ -1171,7 +1170,7 @@ const ROUTES = {
 };
 const NAV = [
   ['nav_property', ['dashboard', 'properties', 'tenants', 'leases']],
-  ['nav_money', ['payments', 'pdcs', 'record', 'transfer', 'transactions', 'expenses', 'bills', 'accounting']],
+  ['nav_money', ['payments', 'pdcs', 'record', 'transactions', 'expenses', 'bills', 'accounting']],
   ['nav_network', ['sharing']],
   ['nav_personal', ['health', 'family', 'vault']],
   ['nav_app', ['trash', 'backup', 'subscription', 'settings']],
