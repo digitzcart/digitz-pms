@@ -74,7 +74,7 @@ h1{font-size:clamp(30px,7vw,52px)}h2{font-size:clamp(20px,4.5vw,28px)}h3{font-si
 .btn svg{width:18px;height:18px}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;background:var(--surface2);border:1px solid var(--line);font-size:12.5px;font-weight:700;white-space:nowrap}
 .chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
-@media(min-width:760px){#txform .formgrid{grid-template-columns:repeat(6,minmax(0,1fr))}#txform .formgrid>.field{grid-column:span 3}#txform .formgrid>[data-field=date],#txform .formgrid>[data-field=reference],#txform .formgrid>[data-field=family_member_id]{grid-column:span 2}#txform .formgrid>.full{grid-column:1/-1}}.tx-tbl tbody tr:hover{background:var(--surface2)}.tx-tbl td,.tx-tbl th{padding:11px 14px}.tx-lines{display:grid;gap:10px}.tx-side{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--surface2)}.tx-side-h{display:flex;align-items:baseline;gap:8px;margin-bottom:10px;flex-wrap:wrap}.tx-side-h b{font-size:15px;text-transform:uppercase;letter-spacing:.04em}.tx-sum{margin-inline-start:auto;font-weight:800}.tx-line{display:grid;grid-template-columns:minmax(0,1fr) 170px 38px;gap:8px;margin-bottom:8px;align-items:center}.tx-line .tx-del{padding:0;height:38px;font-size:18px}.tx-swap{display:flex;justify-content:center;margin:-4px 0}.tx-bal{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:1px dashed var(--line)}.tx-lines.err .tx-bal{border-color:var(--red)}@media(max-width:560px){.tx-line{grid-template-columns:minmax(0,1fr) 120px 34px}}.chips .chip{cursor:pointer}.chip.pick{position:relative;cursor:pointer;padding:8px 13px;font-size:13px}.chip.pick input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}.chip.pick:has(input:checked){background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}.chip.pick:has(input:checked)::before{content:'✓'}.chip.pick:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}.field.err .chips{outline:1px solid var(--red);border-radius:12px;padding:6px}.chips .chip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+@media(min-width:760px){#txform .formgrid{grid-template-columns:repeat(6,minmax(0,1fr))}#txform .formgrid>.field{grid-column:span 3}#txform .formgrid>[data-field=date],#txform .formgrid>[data-field=reference],#txform .formgrid>[data-field=family_member_id]{grid-column:span 2}#txform .formgrid>.full{grid-column:1/-1}}.tx-tbl tbody tr:hover{background:var(--surface2)}.tx-tbl td,.tx-tbl th{padding:11px 14px}.tenant-id-box{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:10px 14px;margin-bottom:12px;border-radius:12px;background:var(--accent);color:var(--accent-ink)}.tenant-id-box b{font-size:22px;font-weight:900;letter-spacing:.03em}.tenant-id-box .muted{color:inherit;opacity:.75}.tx-lines{display:grid;gap:10px}.tx-side{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--surface2)}.tx-side-h{display:flex;align-items:baseline;gap:8px;margin-bottom:10px;flex-wrap:wrap}.tx-side-h b{font-size:15px;text-transform:uppercase;letter-spacing:.04em}.tx-sum{margin-inline-start:auto;font-weight:800}.tx-line{display:grid;grid-template-columns:minmax(0,1fr) 170px 38px;gap:8px;margin-bottom:8px;align-items:center}.tx-line .tx-del{padding:0;height:38px;font-size:18px}.tx-swap{display:flex;justify-content:center;margin:-4px 0}.tx-bal{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:1px dashed var(--line)}.tx-lines.err .tx-bal{border-color:var(--red)}@media(max-width:560px){.tx-line{grid-template-columns:minmax(0,1fr) 120px 34px}}.chips .chip{cursor:pointer}.chip.pick{position:relative;cursor:pointer;padding:8px 13px;font-size:13px}.chip.pick input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}.chip.pick:has(input:checked){background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}.chip.pick:has(input:checked)::before{content:'✓'}.chip.pick:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}.field.err .chips{outline:1px solid var(--red);border-radius:12px;padding:6px}.chips .chip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:800;letter-spacing:.02em;white-space:nowrap}
 .b-Vacant,.b-Cleared,.b-paid,.b-Paid,.b-Active,.b-Held,.b-Refunded{background:color-mix(in srgb,var(--green) 22%,transparent);color:var(--green)}
 .b-Booked,.b-Deposited,.b-Trial,.b-Partial,.b-Renewed{background:color-mix(in srgb,var(--blue) 22%,transparent);color:var(--blue)}
@@ -296,7 +296,7 @@ const SYNC_FIELDS = {
   properties: ['name', 'type', 'address', 'community', 'emirate', 'owner_name', 'owner_mobile', 'size_sqft', 'rent_fils', 'status', 'amenities'],
   rooms: ['property_id', 'name', 'size_sqft', 'rent_fils', 'status', 'amenities'],
   bed_spaces: ['property_id', 'room_id', 'name', 'rent_fils', 'status'],
-  tenants: ['name', 'mobile', 'email', 'nationality', 'id_type', 'id_number', 'emergency_name', 'emergency_mobile'],
+  tenants: ['code', 'name', 'mobile', 'email', 'nationality', 'id_type', 'id_number', 'emergency_name', 'emergency_mobile'],
   leases: ['unit_type', 'unit_id', 'property_id', 'tenant_id', 'start_date', 'end_date', 'annual_rent_fils', 'admin_fee_fils', 'extra_charges', 'deposit_fils', 'deposit_status', 'deposit_refunded_fils', 'schedule_type', 'payment_method', 'status', 'renewed_from'],
   payment_schedules: ['lease_id', 'property_id', 'seq', 'kind', 'label', 'due_date', 'amount_fils', 'method', 'status', 'paid_on', 'pdc_id', 'transaction_id'],
   pdcs: ['direction', 'cheque_no', 'bank', 'amount_fils', 'due_date', 'status', 'party', 'lease_id', 'schedule_id', 'property_id', 'replaced_by'],
@@ -355,7 +355,7 @@ async function save(store, rec) {
   r.created_at = r.created_at || now; r.updated_at = now;
   r.deleted_at = r.deleted_at ?? null;
   r.owner_user_id = r.owner_user_id || S.user?.id || null;
-  await docAssign(store, r);
+  await docAssign(store, r); await tenantCodeAssign(store, r);
   await idb.put(store, r); invalidate(store);
   if (SYNC_FIELDS[store]) await queueSync(store, r.id);
   return r;
@@ -1213,7 +1213,7 @@ function renderApp() {
     <nav class="bottomnav" aria-label="${esc(t('main_nav'))}">${bottom}</nav></div>`;
   updateSyncDot();
   const v = $('#view'); const route = S.route;
-  Promise.resolve(loadLedger()).then(() => ROUTES[route].view(S.params)).then((html) => { if (S.route === route && html !== undefined && $('#view') === v) { v.innerHTML = html; afterView(v); } })
+  Promise.resolve(loadLedger()).then(() => ensureTenantCodes()).then(() => ROUTES[route].view(S.params)).then((html) => { if (S.route === route && html !== undefined && $('#view') === v) { v.innerHTML = html; afterView(v); } })
     .catch((e) => { console.error(e); v.innerHTML = `<div class="empty">${esc(t('err_generic'))}<br><span class="tiny">${esc(e.message)}</span></div>`; });
   window.scrollTo(0, 0);
 }
@@ -1314,7 +1314,7 @@ async function computeAlerts() {
   const tenants = await list('tenants');
   for (const l of (await list('leases')).filter((x) => x.status === 'Active')) {
     const d = daysUntil(l.end_date);
-    if (d >= 0 && d <= 90) out.push({ lvl: d <= 30 ? 'red' : d <= 60 ? '' : 'blue', sort: 100 + d, text: t('al_lease_exp', { n: d, name: tenants.find((x) => x.id === l.tenant_id)?.name || '' }), href: `#/lease/${l.id}` });
+    if (d >= 0 && d <= 90) out.push({ lvl: d <= 30 ? 'red' : d <= 60 ? '' : 'blue', sort: 100 + d, text: t('al_lease_exp', { n: d, name: tenantLabel(tenants.find((x) => x.id === l.tenant_id)) }), href: `#/lease/${l.id}` });
   }
   for (const b of (await list('bills')).filter((x) => x.status !== 'paid')) {
     const d = daysUntil(b.due_date); if (d !== null && d <= 3) out.push({ lvl: d < 0 ? 'red' : '', sort: 200 + d, text: t('al_bill', { name: b.name, d: fmtDate(b.due_date) }), href: '#/bills' });
@@ -1453,6 +1453,39 @@ Object.assign(ACTIONS, {
 });
 
 /* ---------------- Tenants ---------------- */
+/* ---------------- Tenant ID: "T" + last 4 digits of the mobile (T4567, then T4567-2 if taken).
+   Given once when the tenant is first saved with a mobile and kept even if the mobile changes later. */
+const tenantDigits = (mobile) => String(mobile || '').replace(/\D/g, '').slice(-4);
+async function tenantCodeFor(mobile, selfId) {
+  const d = tenantDigits(mobile); if (!d) return '';
+  const used = new Set((await list('tenants', { withDeleted: true })).filter((x) => x.id !== selfId && x.code).map((x) => x.code.toUpperCase()));
+  for (const c of tenantIssued) used.add(c);
+  const base = 'T' + d; if (!used.has(base)) return base;
+  for (let i = 2; ; i++) if (!used.has(`${base}-${i}`)) return `${base}-${i}`;
+}
+const tenantIssued = new Set();
+let tenantLock = Promise.resolve();
+function tenantCodeAssign(store, r) {
+  if (store !== 'tenants' || r.code || r.deleted_at || !tenantDigits(r.mobile)) return Promise.resolve();
+  const run = tenantLock.then(async () => { if (!r.code) { r.code = await tenantCodeFor(r.mobile, r.id); if (r.code) tenantIssued.add(r.code.toUpperCase()); } });
+  tenantLock = run.catch(() => {}); return run;
+}
+/** "T4567 | Arjun Menon" — used wherever a tenant name is shown. */
+const tenantLabel = (tn) => (tn ? (tn.code ? `${tn.code} | ${tn.name || ''}` : tn.name || '') : '');
+let tenantBackfilling = false;
+async function ensureTenantCodes() {
+  if (tenantBackfilling) return; const todo = (await list('tenants')).filter((x) => !x.code && tenantDigits(x.mobile)); if (!todo.length) return;
+  tenantBackfilling = true; try { for (const x of todo.sort(by('created_at'))) await save('tenants', x); } finally { tenantBackfilling = false; }
+}
+
+/** Shows the Tenant ID at the top of the tenant form (live preview while the mobile is typed). */
+function mountTenantId(el, rec) {
+  const form = el.querySelector('form'); const box = document.createElement('div'); box.className = 'tenant-id-box';
+  form.prepend(box); const mob = form.querySelector('[name="mobile"]');
+  const paint = async () => { const code = rec.code || (await tenantCodeFor(mob.value, rec.id));
+    box.innerHTML = `<span class="tiny muted">${esc(t('f_tenant_id'))}</span><b>${esc(code || '—')}</b><span class="tiny muted">${esc(rec.code ? t('tenant_id_fixed') : code ? t('tenant_id_new') : t('tenant_id_hint'))}</span>`; };
+  if (!rec.code) mob.addEventListener('input', paint); paint();
+}
 const tenantFields = () => [
   { k: 'name', label: t('f_full_name'), req: true }, { k: 'id_number', label: t('f_id_number'), help: t('id_text_only') },
   { k: 'mobile', type: 'tel', label: t('f_mobile'), req: true }, { k: 'email', type: 'email', label: t('f_email') },
@@ -1461,23 +1494,23 @@ const tenantFields = () => [
   { k: 'notes', type: 'textarea', label: t('f_notes'), full: true },
 ];
 async function viewTenants() {
-  const ts = (await list('tenants')).sort(by('name')); const leases = await list('leases');
+  const ts = (await list('tenants')).sort((a, b) => String(a.code || '~').localeCompare(String(b.code || '~'), undefined, { numeric: true }) || String(a.name).localeCompare(String(b.name))); const leases = await list('leases');
   return pageHead(esc(t('r_tenants')), `<button class="btn primary" data-act="new-tenant">${icon('plus')} ${esc(t('add_tenant'))}</button>`) +
     (ts.length ? `<div class="list">${ts.map((x) => { const act = leases.filter((l) => l.tenant_id === x.id && l.status === 'Active').length;
-      return `<button class="item" data-act="edit-tenant" data-id="${x.id}">${icon('users')}<div class="grow"><div class="t">${esc(x.name)}</div><div class="s">${esc(x.mobile || '')} · ${esc(x.nationality || '')}</div></div>${act ? badge('Active', t('n_leases', { n: act })) : ''}</button>`; }).join('')}</div>` : `<div class="empty">${esc(t('empty_tenants'))}</div>`);
+      return `<button class="item" data-act="edit-tenant" data-id="${x.id}">${icon('users')}<div class="grow"><div class="t">${esc(tenantLabel(x))}</div><div class="s">${esc(x.mobile || '')} · ${esc(x.nationality || '')}</div></div>${act ? badge('Active', t('n_leases', { n: act })) : ''}</button>`; }).join('')}</div>` : `<div class="empty">${esc(t('empty_tenants'))}</div>`);
 }
 Object.assign(ACTIONS, {
-  'new-tenant': () => formSheet({ title: t('add_tenant'), fields: tenantFields(), onSave: async (d) => { await save('tenants', d); refresh(); } }),
+  'new-tenant': () => formSheet({ title: t('add_tenant'), fields: tenantFields(), onMount: (el) => mountTenantId(el, {}), onSave: async (d) => { await save('tenants', d); refresh(); } }),
   'edit-tenant': async (d) => { const rec = await getRec('tenants', d.id);
-    await formSheet({ title: rec.name, fields: tenantFields(), rec, extraHTML: `<button type="button" class="btn danger sm" data-act="del" data-store="tenants" data-id="${rec.id}" data-label="${esc(rec.name)}" data-close>${icon('trash')} ${esc(t('delete'))}</button>`, onSave: async (x) => { await save('tenants', { ...rec, ...x }); refresh(); } }); },
+    await formSheet({ title: tenantLabel(rec), fields: tenantFields(), rec, onMount: (el) => mountTenantId(el, rec), extraHTML: `<button type="button" class="btn danger sm" data-act="del" data-store="tenants" data-id="${rec.id}" data-label="${esc(tenantLabel(rec))}" data-close>${icon('trash')} ${esc(t('delete'))}</button>`, onSave: async (x) => { await save('tenants', { ...rec, ...x }); refresh(); } }); },
 });
 
 /* ---------------- Leases ---------------- */
 async function leaseFields(rec = {}) {
-  const units = await allUnits(); const tenants = (await list('tenants')).sort(by('name'));
+  const units = await allUnits(); const tenants = (await list('tenants')).sort((a, b) => String(a.code || '~').localeCompare(String(b.code || '~'), undefined, { numeric: true }));
   return [
     { k: 'unit', type: 'select', label: t('f_unit'), req: true, full: true, opts: units.map((u) => [`${u.entity}|${u.id}`, `${u.label} — ${u.sub} (${t('st_' + u.status)})`]), def: rec.unit_type ? `${rec.unit_type}|${rec.unit_id}` : '' },
-    { k: 'tenant_id', type: 'select', label: t('f_tenant'), req: true, full: true, opts: tenants.map((x) => [x.id, `${x.name} ${x.mobile || ''}`]) },
+    { k: 'tenant_id', type: 'select', label: t('f_tenant'), req: true, full: true, opts: tenants.map((x) => [x.id, `${tenantLabel(x)} · ${x.mobile || ''}`]) },
     { k: 'start_date', type: 'date', label: t('f_start'), req: true }, { k: 'end_date', type: 'date', label: t('f_end'), req: true, validate: (v, d) => (v && d.start_date && ymd(v) <= ymd(d.start_date) ? t('err_end_before_start') : '') },
     { k: 'annual_rent_fils', type: 'money', label: t('f_rent_annual'), req: true, min: 1 }, { k: 'admin_fee_fils', type: 'money', label: t('f_admin_fee'), min: 0 },
     { k: 'deposit_fils', type: 'money', label: t('f_deposit'), min: 0 },
@@ -1517,7 +1550,7 @@ async function createSchedule(lease) {
     const method = r.kind === 'rent' ? lease.payment_method : 'Cash';
     let sch = await save('payment_schedules', { ...r, lease_id: lease.id, property_id: lease.property_id, method, status: 'due' });
     if (method === 'Cheque') {
-      const pdc = await save('pdcs', { direction: 'receivable', cheque_no: '', bank: '', amount_fils: r.amount_fils, due_date: r.due_date, status: 'Pending', party: tenant?.name || '', lease_id: lease.id, schedule_id: sch.id, property_id: lease.property_id });
+      const pdc = await save('pdcs', { direction: 'receivable', cheque_no: '', bank: '', amount_fils: r.amount_fils, due_date: r.due_date, status: 'Pending', party: tenantLabel(tenant), lease_id: lease.id, schedule_id: sch.id, property_id: lease.property_id });
       sch = await save('payment_schedules', { ...sch, pdc_id: pdc.id });
     }
   }
@@ -1561,7 +1594,7 @@ async function viewLeases() {
   ls.sort(by('end_date'));
   const rows = await Promise.all(ls.map(async (l) => { const d = daysUntil(l.end_date);
     const warn = l.status === 'Active' && d <= 90 ? `<span class="badge ${d <= 30 ? 'b-overdue' : d <= 60 ? 'b-due' : 'b-Booked'}">${esc(t('ends_in', { n: d }))}</span>` : badge(l.status);
-    return `<a class="item" href="#/lease/${l.id}">${icon('doc')}<div class="grow"><div class="t">${esc(tenants.find((x) => x.id === l.tenant_id)?.name || '—')}</div><div class="s">${esc(await unitLabel(l.unit_type, l.unit_id))} · ${fmtDate(l.start_date)} → ${fmtDate(l.end_date)}</div></div><div class="right"><div class="amt">${fmtAED(l.annual_rent_fils)}</div>${warn}</div></a>`; }));
+    return `<a class="item" href="#/lease/${l.id}">${icon('doc')}<div class="grow"><div class="t">${esc(tenantLabel(tenants.find((x) => x.id === l.tenant_id)) || '—')}</div><div class="s">${esc(await unitLabel(l.unit_type, l.unit_id))} · ${fmtDate(l.start_date)} → ${fmtDate(l.end_date)}</div></div><div class="right"><div class="amt">${fmtAED(l.annual_rent_fils)}</div>${warn}</div></a>`; }));
   return pageHead(esc(t('r_leases')), `<button class="btn primary" data-act="new-lease">${icon('plus')} ${esc(t('new_lease'))}</button>`) +
     `<div class="chips" style="margin-bottom:12px">${[['Active', t('st_Active')], ['expiring', t('expiring_90')], ['Expired', t('st_Expired')], ['Renewed', t('st_Renewed')], ['Terminated', t('st_Terminated')], ['all', t('all')]].map(([v, l]) => `<span class="chip ${f === v ? 'on' : ''}" data-act="tab" data-k="f" data-v="${v}">${esc(l)}</span>`).join('')}</div>` +
     (rows.length ? `<div class="list">${rows.join('')}</div>` : `<div class="empty">${esc(t('empty_leases'))}</div>`);
@@ -1572,17 +1605,17 @@ async function viewLease(id) {
   const pdcs = await list('pdcs');
   const paid = sum(sch.filter((s) => s.status === 'paid'), (s) => s.amount_fils); const due = sum(sch.filter((s) => s.status === 'due'), (s) => s.amount_fils);
   const d = daysUntil(l.end_date);
-  return backLink('#/leases', t('r_leases')) + pageHead(esc(tn?.name || t('lease')), `
+  return backLink('#/leases', t('r_leases')) + pageHead(esc(tenantLabel(tn) || t('lease')), `
       ${l.status === 'Active' ? `<button class="btn primary" data-act="renew-lease" data-id="${id}">${esc(t('renew'))}</button><button class="btn" data-act="end-lease" data-id="${id}">${esc(t('terminate'))}</button>` : ''}
       ${['Expired', 'Terminated'].includes(l.status) ? `<button class="btn primary" data-act="renew-lease" data-id="${id}">${esc(t('renew'))}</button>` : ''}
       <button class="btn" data-act="edit-lease" data-id="${id}">${esc(t('edit'))}</button>
-      <button class="btn danger" data-act="del" data-store="leases" data-id="${id}" data-label="${esc(tn?.name || '')}" data-back="#/leases">${icon('trash')}</button>`, esc(await unitLabel(l.unit_type, l.unit_id))) +
+      <button class="btn danger" data-act="del" data-store="leases" data-id="${id}" data-label="${esc(tenantLabel(tn))}" data-back="#/leases">${icon('trash')}</button>`, esc(await unitLabel(l.unit_type, l.unit_id))) +
     (l.status === 'Active' && d <= 90 ? `<div class="alert ${d <= 30 ? 'red' : ''}">${esc(t('lease_ends_warn', { n: d }))}</div>` : '') +
     `<div class="grid g3"><div class="card"><dl class="kv"><dt>${esc(t('f_status'))}</dt><dd>${badge(l.status)}</dd><dt>${esc(t('period'))}</dt><dd>${fmtDate(l.start_date)} → ${fmtDate(l.end_date)}</dd>
       <dt>${esc(t('f_rent_annual'))}</dt><dd>${fmtAED(l.annual_rent_fils)}</dd><dt>${esc(t('f_admin_fee'))}</dt><dd>${fmtAED(l.admin_fee_fils)}</dd>
       ${(l.extra_charges || []).map((x) => `<dt>${esc(x.label)}</dt><dd>${fmtAED(x.amount_fils)}</dd>`).join('')}
       <dt>${esc(t('f_schedule'))}</dt><dd>${esc(t('sch_' + l.schedule_type))} · ${esc(t('pm_' + l.payment_method))}</dd>
-      <dt>${esc(t('f_tenant'))}</dt><dd>${esc(tn?.name || '')} ${tn?.mobile ? `<a href="tel:${esc(tn.mobile)}">${esc(tn.mobile)}</a>` : ''}</dd></dl>${l.notes ? `<p class="small muted">${esc(l.notes)}</p>` : ''}</div>
+      <dt>${esc(t('f_tenant'))}</dt><dd>${esc(tenantLabel(tn))} ${tn?.mobile ? `<a href="tel:${esc(tn.mobile)}">${esc(tn.mobile)}</a>` : ''}</dd></dl>${l.notes ? `<p class="small muted">${esc(l.notes)}</p>` : ''}</div>
      <div class="card"><h3>${esc(t('f_deposit'))}</h3><div class="stat" style="border:0;padding:8px 0"><div class="v">${fmtAED(l.deposit_fils)}</div></div>
       <p>${badge(l.deposit_status === 'None' ? 'Pending' : l.deposit_status, t('dep_' + (l.deposit_status || 'None')))} ${l.deposit_refunded_fils ? `· ${esc(t('refunded'))} ${fmtAED(l.deposit_refunded_fils)}` : ''}</p>
       ${['Held', 'Partially refunded'].includes(l.deposit_status) ? `<button class="btn sm" data-act="refund-deposit" data-id="${id}">${esc(t('refund_deposit'))}</button>` : ''}</div>
@@ -1657,7 +1690,7 @@ async function viewPayments() {
   else if (f === 'overdue') rows = rows.filter((s) => s.status === 'due' && ymd(s.due_date) < today);
   else if (f === 'paid') rows = rows.filter((s) => s.status === 'paid');
   rows.sort(by('due_date', f === 'paid' ? -1 : 1));
-  const tname = (s) => tenants.find((x) => x.id === leases.find((l) => l.id === s.lease_id)?.tenant_id)?.name || '';
+  const tname = (s) => tenantLabel(tenants.find((x) => x.id === leases.find((l) => l.id === s.lease_id)?.tenant_id));
   return pageHead(esc(t('r_payments'))) +
     `<div class="chips" style="margin-bottom:12px">${[['due', t('due_30')], ['overdue', t('overdue')], ['paid', t('paid')], ['all', t('all')]].map(([v, l]) => `<span class="chip ${f === v ? 'on' : ''}" data-act="tab" data-k="f" data-v="${v}">${esc(l)}</span>`).join('')}</div>
     <div class="stat" style="margin-bottom:12px"><div class="l">${esc(t('total'))}</div><div class="v">${fmtAED(sum(rows, (s) => s.amount_fils))}</div></div>` +
@@ -1819,7 +1852,7 @@ const txSplitText = (x) => { const ps = txParts(x); return ps.length > 1 ? ps.ma
 function txFilterRows(all, cats, type) { return all.filter((x) => (!cats.length || txCatsOf(x).some((c) => cats.includes(c))) && (!type || x.type === type)); }
 /** Transactions table: Date · Voucher No. · Name · Amount. Sorted by voucher number unless a header is clicked. */
 async function txTable(rows, props) {
-  const tenants = await list('tenants'); const tname = (x) => tenants.find((tn) => tn.id === x.tenant_id)?.name || '';
+  const tenants = await list('tenants'); const tname = (x) => tenantLabel(tenants.find((tn) => tn.id === x.tenant_id));
   const nameOf = (x) => tname(x) || txCatLabel(x);
   const sort = S.params.sort || 'no'; const dir = S.params.dir === 'desc' ? -1 : 1;
   const cmpNo = (a, b) => (!a.doc_no ? 1 : !b.doc_no ? -1 : a.doc_no.localeCompare(b.doc_no, undefined, { numeric: true }) * dir);
@@ -2560,7 +2593,7 @@ Object.assign(ACTIONS, {
     const lines = txLinesOf(x);
     printHTML(x.doc_no || 'Voucher', `<div class="brand"><div><div class="logo"><span>Digitz</span> PMS</div><div class="muted">${esc(S.agency?.company || S.user?.name || '')}</div></div>
       <div style="text-align:right"><h1>${trf ? 'Transfer Voucher' : inc ? 'Receipt Voucher' : 'Payment Voucher'}</h1><div>${trf ? 'ട്രാൻസ്ഫർ വൗച്ചർ' : inc ? 'രസീത് വൗച്ചർ' : 'പേയ്മെന്റ് വൗച്ചർ'}</div><div class="big">${esc(x.doc_no || '—')}</div><div class="muted">${fmtDate(x.date)}</div></div></div>
-      <div class="grid"><div class="box"><div class="muted">${inc ? 'Received from / ലഭിച്ചത്' : 'Paid to / നൽകിയത്'}</div><b>${esc(ten?.name || prop?.owner_name || '—')}</b></div>
+      <div class="grid"><div class="box"><div class="muted">${inc ? 'Received from / ലഭിച്ചത്' : 'Paid to / നൽകിയത്'}</div><b>${esc(tenantLabel(ten) || prop?.owner_name || '—')}</b></div>
         <div class="box"><div class="muted">Property / പ്രോപ്പർട്ടി</div><b>${esc(prop?.name || '—')}</b></div></div>
       <table><thead><tr><th style="width:90px"></th><th>Item / ഇനം</th><th class="num">Amount (AED)</th></tr></thead><tbody>${['from', 'to'].map((sd) => lines.filter((l) => l.side === sd).map((l, i) => `<tr><td class="muted">${i ? '' : sd === 'from' ? 'From / നിന്ന്' : 'To / ലേക്ക്'}</td><td>${esc(acctName(l.account))}</td><td class="num">${fmtAED(l.amount_fils)}</td></tr>`).join('')).join('')}
         <tr class="tot"><td></td><td>Total / ആകെ</td><td class="num">${fmtAED(x.amount_fils)}</td></tr></tbody></table>
@@ -2801,6 +2834,8 @@ Object.assign(ACTIONS, {
    Format: [key, English, Malayalam]
    ===================================================================== */
 const I18N_ROWS = [
+['f_tenant_id', 'Tenant ID', 'ടെനന്റ് ഐഡി'], ['tenant_id_new', 'T + last 4 digits of the mobile — given when you save', 'T + മൊബൈലിന്റെ അവസാന 4 അക്കങ്ങൾ — സേവ് ചെയ്യുമ്പോൾ നൽകും'],
+['tenant_id_fixed', 'Stays the same even if the mobile changes', 'മൊബൈൽ മാറിയാലും ഇത് മാറില്ല'], ['tenant_id_hint', 'Enter the mobile number to create the ID', 'ഐഡി സൃഷ്ടിക്കാൻ മൊബൈൽ നമ്പർ നൽകുക'],
 ['voucher_no', 'Voucher No.', 'വൗച്ചർ നമ്പർ'], ['f_name_col', 'Name', 'പേര്'],
 ['tx_from', 'From', 'നിന്ന്'], ['tx_to', 'To', 'ലേക്ക്'], ['tx_from_hint', 'where the money comes from', 'പണം എവിടെ നിന്ന് വരുന്നു'], ['tx_to_hint', 'where the money goes', 'പണം എവിടേക്ക് പോകുന്നു'],
 ['tx_item', 'Item', 'ഇനം'], ['add_row', 'Add row', 'വരി ചേർക്കുക'], ['remove_row', 'Remove row', 'വരി നീക്കുക'], ['swap_sides', 'Swap', 'പരസ്പരം മാറ്റുക'],
