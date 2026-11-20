@@ -1453,9 +1453,10 @@ Object.assign(ACTIONS, {
 });
 
 /* ---------------- Tenants ---------------- */
-/* ---------------- Tenant ID: "T" + last 4 digits of the mobile (T4567, then T4567-2 if taken).
+/* ---------------- Tenant ID: "T" + last 5 digits of the mobile (T41122, then T41122-2 if taken).
    Given once when the tenant is first saved with a mobile and kept even if the mobile changes later. */
-const tenantDigits = (mobile) => String(mobile || '').replace(/\D/g, '').slice(-4);
+const tenantDigits = (mobile) => String(mobile || '').replace(/\D/g, '').slice(-5);
+const OLD_TENANT_CODE = /^T\d{4}(-\d+)?$/; // 4-digit IDs from before the switch to 5 digits
 async function tenantCodeFor(mobile, selfId) {
   const d = tenantDigits(mobile); if (!d) return '';
   const used = new Set((await list('tenants', { withDeleted: true })).filter((x) => x.id !== selfId && x.code).map((x) => x.code.toUpperCase()));
@@ -1470,12 +1471,13 @@ function tenantCodeAssign(store, r) {
   const run = tenantLock.then(async () => { if (!r.code) { r.code = await tenantCodeFor(r.mobile, r.id); if (r.code) tenantIssued.add(r.code.toUpperCase()); } });
   tenantLock = run.catch(() => {}); return run;
 }
-/** "T4567 | Arjun Menon" — used wherever a tenant name is shown. */
+/** "T41122 | Arjun Menon" — used wherever a tenant name is shown. */
 const tenantLabel = (tn) => (tn ? (tn.code ? `${tn.code} | ${tn.name || ''}` : tn.name || '') : '');
 let tenantBackfilling = false;
 async function ensureTenantCodes() {
-  if (tenantBackfilling) return; const todo = (await list('tenants')).filter((x) => !x.code && tenantDigits(x.mobile)); if (!todo.length) return;
-  tenantBackfilling = true; try { for (const x of todo.sort(by('created_at'))) await save('tenants', x); } finally { tenantBackfilling = false; }
+  if (tenantBackfilling) return; const all = await list('tenants', { withDeleted: true }); const todo = all.filter((x) => (!x.code && !x.deleted_at && tenantDigits(x.mobile)) || (x.code && OLD_TENANT_CODE.test(x.code) && tenantDigits(x.mobile).length === 5)); if (!todo.length) return;
+  tenantBackfilling = true;
+  try { for (const x of todo.sort(by('created_at'))) { const code = await tenantCodeFor(x.mobile, x.id); tenantIssued.add(code.toUpperCase()); await save('tenants', { ...x, code }); } } finally { tenantBackfilling = false; }
 }
 
 /** Shows the Tenant ID at the top of the tenant form (live preview while the mobile is typed). */
@@ -2836,7 +2838,7 @@ Object.assign(ACTIONS, {
    Format: [key, English, Malayalam]
    ===================================================================== */
 const I18N_ROWS = [
-['f_tenant_id', 'Tenant ID', 'ടെനന്റ് ഐഡി'], ['tenant_id_new', 'T + last 4 digits of the mobile — given when you save', 'T + മൊബൈലിന്റെ അവസാന 4 അക്കങ്ങൾ — സേവ് ചെയ്യുമ്പോൾ നൽകും'],
+['f_tenant_id', 'Tenant ID', 'ടെനന്റ് ഐഡി'], ['tenant_id_new', 'T + last 5 digits of the mobile — given when you save', 'T + മൊബൈലിന്റെ അവസാന 5 അക്കങ്ങൾ — സേവ് ചെയ്യുമ്പോൾ നൽകും'],
 ['tenant_id_fixed', 'Stays the same even if the mobile changes', 'മൊബൈൽ മാറിയാലും ഇത് മാറില്ല'], ['tenant_id_hint', 'Enter the mobile number to create the ID', 'ഐഡി സൃഷ്ടിക്കാൻ മൊബൈൽ നമ്പർ നൽകുക'],
 ['voucher_no', 'Voucher No.', 'വൗച്ചർ നമ്പർ'], ['f_name_col', 'Name', 'പേര്'],
 ['tx_from', 'From', 'നിന്ന്'], ['tx_to', 'To', 'ലേക്ക്'], ['tx_from_hint', 'where the money comes from', 'പണം എവിടെ നിന്ന് വരുന്നു'], ['tx_to_hint', 'where the money goes', 'പണം എവിടേക്ക് പോകുന്നു'],
